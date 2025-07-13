@@ -1,0 +1,30 @@
+{
+    debug
+    frankenphp
+}
+
+localhost:80, localhost:443 {
+    root * /app/public
+
+    php_server
+
+    handle /api/* {
+        php_fastcgi unix//var/run/php/php8.4-fpm.sock
+    }
+
+    file_server
+
+    try_files {path} {path}/ /index.php?{query}
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    }
+
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+} 
