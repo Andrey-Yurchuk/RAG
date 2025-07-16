@@ -14,9 +14,9 @@ return [
 
     'connections' => [
         'default' => [
-            'host' => $_ENV['REDIS_HOST'] ?? 'redis',
-            'port' => $_ENV['REDIS_PORT'] ?? '6379',
-            'password' => $_ENV['REDIS_PASSWORD'] ?? null,
+            'host' => $_ENV['REDIS_HOST'],
+            'port' => $_ENV['REDIS_PORT'],
+            'password' => $_ENV['REDIS_PASSWORD'],
             'database' => 0,
         ],
     ],
