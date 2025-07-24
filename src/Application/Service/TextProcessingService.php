@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RagSystem\Application\Service;
 
+use InvalidArgumentException;
 use Smalot\PdfParser\Parser as PdfParser;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\Settings;
@@ -73,5 +74,26 @@ class TextProcessingService
         $text = str_replace(["\r\n", "\r"], "\n", (string) $text);
 
         return trim($text);
+    }
+
+    /**
+     * Извлекает текст из файла различных форматов, поддерживает TXT, MD, HTML, PDF, DOCX и DOC файлы
+     */
+    public function extractTextFromFile(string $filePath, ?string $fileType = null): string
+    {
+        if ($fileType) {
+            $extension = strtolower($fileType);
+        } else {
+            $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        }
+
+        return match ($extension) {
+            'txt' => $this->extractFromText($filePath),
+            'md' => $this->extractFromMarkdown($filePath),
+            'html' => $this->extractFromHtml($filePath),
+            'pdf' => $this->extractFromPdf($filePath),
+            'docx', 'doc' => $this->extractFromDocx($filePath),
+            default => throw new InvalidArgumentException("Unsupported file type: {$extension}"),
+        };
     }
 }
