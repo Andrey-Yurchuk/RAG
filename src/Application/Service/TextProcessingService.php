@@ -60,4 +60,18 @@ class TextProcessingService
 
         return $chunks;
     }
+
+    /**
+     * Очищает и нормализует текст для дальнейшей обработки
+     */
+    public function cleanText(string $text): string
+    {
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text);
+
+        $text = str_replace(["\r\n", "\r"], "\n", (string) $text);
+
+        return trim($text);
+    }
 }
