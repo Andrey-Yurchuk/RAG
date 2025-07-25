@@ -96,4 +96,36 @@ class TextProcessingService
             default => throw new InvalidArgumentException("Unsupported file type: {$extension}"),
         };
     }
+
+    /**
+     * Разбивает текст на отдельные предложения по знакам препинания (.!?)
+     */
+    private function splitIntoSentences(string $text): array
+    {
+        $sentences = preg_split('/(?<=[.!?])\s+/', $text, -1, PREG_SPLIT_NO_EMPTY);
+
+        return array_filter($sentences, function ($sentence) {
+            return trim($sentence) !== '';
+        });
+    }
+
+    /**
+     * Создает текст перекрытия для соседних чанков
+     */
+    private function getOverlapText(string $text): string
+    {
+        if (mb_strlen($text) <= $this->chunkOverlap) {
+            return $text;
+        }
+
+        // Берем последние N символов для перекрытия с конца
+        $overlapText = mb_substr($text, -$this->chunkOverlap);
+
+        $lastSpace = mb_strrpos($overlapText, ' ');
+        if ($lastSpace !== false) {
+            $overlapText = mb_substr($overlapText, $lastSpace + 1);
+        }
+
+        return $overlapText;
+    }
 }
