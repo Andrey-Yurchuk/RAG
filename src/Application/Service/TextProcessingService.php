@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace RagSystem\Application\Service;
 
+use Exception;
 use InvalidArgumentException;
+use RuntimeException;
 use Smalot\PdfParser\Parser as PdfParser;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\Settings;
@@ -158,5 +160,26 @@ class TextProcessingService
         $content = html_entity_decode($content, ENT_QUOTES, 'UTF-8');
 
         return $content;
+    }
+
+    /**
+     * Извлекает текст из PDF документа
+     */
+    private function extractFromPdf(string $filePath): string
+    {
+        try {
+            $parser = new PdfParser();
+            $pdf = $parser->parseFile($filePath);
+
+            $text = $pdf->getText();
+
+            if (empty($text)) {
+                throw new RuntimeException('Could not extract text from PDF file');
+            }
+
+            return $text;
+        } catch (Exception $e) {
+            throw new RuntimeException('Failed to extract text from PDF: ' . $e->getMessage());
+        }
     }
 }
