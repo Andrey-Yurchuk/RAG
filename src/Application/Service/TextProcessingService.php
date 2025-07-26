@@ -182,4 +182,39 @@ class TextProcessingService
             throw new RuntimeException('Failed to extract text from PDF: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Извлекает текст из DOCX или DOC документа
+     */
+    private function extractFromDocx(string $filePath): string
+    {
+        try {
+            Settings::setTempDir(sys_get_temp_dir());
+
+            $phpWord = IOFactory::load($filePath);
+            $text = '';
+
+            foreach ($phpWord->getSections() as $section) {
+                foreach ($section->getElements() as $element) {
+                    if (method_exists($element, 'getText')) {
+                        $text .= $element->getText() . ' ';
+                    } elseif (method_exists($element, 'getElements')) {
+                        foreach ($element->getElements() as $childElement) {
+                            if (method_exists($childElement, 'getText')) {
+                                $text .= $childElement->getText() . ' ';
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (empty($text)) {
+                throw new RuntimeException('Could not extract text from DOCX file');
+            }
+
+            return $text;
+        } catch (Exception $e) {
+            throw new RuntimeException('Failed to extract text from DOCX: ' . $e->getMessage());
+        }
+    }
 }
