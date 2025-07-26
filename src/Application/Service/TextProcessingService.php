@@ -128,4 +128,35 @@ class TextProcessingService
 
         return $overlapText;
     }
+
+    /**
+     * Извлекает чистый текст из Markdown файла
+     */
+    private function extractFromMarkdown(string $filePath): string
+    {
+        $content = file_get_contents($filePath);
+
+        $content = preg_replace('/^#+\s*/m', '', $content);
+        $content = preg_replace('/\*\*(.*?)\*\*/', '$1', $content);
+        $content = preg_replace('/\*(.*?)\*/', '$1', $content);
+        $content = preg_replace('/\[([^\]]*)\]\([^)]*\)/', '$1', $content);
+        $content = preg_replace('/`([^`]*)`/', '$1', $content);
+        $content = preg_replace('/```[^`]*```/', '', $content);
+
+        return $content;
+    }
+
+    /**
+     * Извлекает чистый текст из HTML файла
+     */
+    private function extractFromHtml(string $filePath): string
+    {
+        $content = file_get_contents($filePath);
+
+        $content = strip_tags($content);
+
+        $content = html_entity_decode($content, ENT_QUOTES, 'UTF-8');
+
+        return $content;
+    }
 }
