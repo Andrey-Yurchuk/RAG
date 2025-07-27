@@ -217,4 +217,56 @@ class TextProcessingService
             throw new RuntimeException('Failed to extract text from DOCX: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Извлекает текст из обычного текстового файла (.txt)
+     */
+    private function extractFromText(string $filePath): string
+    {
+        $content = file_get_contents($filePath);
+
+        return $this->convertToUtf8($content);
+    }
+
+    /**
+     * Конвертирует текст в UTF-8 кодировку
+     */
+    private function convertToUtf8(string $text): string
+    {
+        if (mb_check_encoding($text, 'UTF-8')) {
+            return $text;
+        }
+
+        // Если не UTF-8 - автоматически определяем кодировку
+        $encoding = mb_detect_encoding($text, [
+            'UTF-8',
+            'Windows-1251',
+            'Windows-1252',
+            'ISO-8859-1',
+            'ISO-8859-15',
+            'CP1251',
+            'KOI8-R',
+            'ASCII'
+        ], true);
+
+        if ($encoding && $encoding !== 'UTF-8') {
+            $converted = mb_convert_encoding($text, 'UTF-8', $encoding);
+
+            if (mb_check_encoding($converted, 'UTF-8')) {
+                return $converted;
+            }
+        }
+
+        $commonEncodings = ['Windows-1251', 'Windows-1252', 'ISO-8859-1'];
+
+        foreach ($commonEncodings as $enc) {
+            $converted = mb_convert_encoding($text, 'UTF-8', $enc);
+            if (mb_check_encoding($converted, 'UTF-8')) {
+                return $converted;
+            }
+        }
+
+        // Удаляем невалидные UTF-8 последовательности
+        return mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+    }
 }
