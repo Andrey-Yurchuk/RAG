@@ -90,4 +90,34 @@ class LlamaCppAdapter
             return $this->generateSimpleEmbedding($text);
         }
     }
+
+    /**
+     * Генерирует простое векторное представление текста (эмбеддинги) без использования внешнего сервера.
+     * Этот метод используется как резервный вариант, когда сервер llama.cpp недоступен.
+     * Создает эмбеддинг на основе байтового представления текста с применением математических преобразований.
+     * Алгоритм включает нормализацию и заполнение до указанной размерности
+     */
+    public function generateSimpleEmbedding(string $text, int $dimension = 1536): array
+    {
+        $text = strtolower(trim($text));
+        $textBytes = unpack('C*', $text);
+        $embedding = [];
+
+        for ($i = 0; $i < $dimension; $i++) {
+            if ($i < count($textBytes)) {
+                $value = ($textBytes[$i + 1] / 127.5) - 1.0;
+            } else {
+                $charSum = array_sum($textBytes);
+                $value = (($charSum + $i) % 255 / 127.5) - 1.0;
+            }
+            $embedding[] = $value;
+        }
+
+        $norm = sqrt(array_sum(array_map(fn($x) => $x * $x, $embedding)));
+        if ($norm > 0) {
+            $embedding = array_map(fn($x) => $x / $norm, $embedding);
+        }
+
+        return $embedding;
+    }
 }
