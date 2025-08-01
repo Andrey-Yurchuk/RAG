@@ -162,4 +162,57 @@ class LlamaCppAdapter
 
         Твой ответ на русском языке:";
     }
+
+    /**
+     * Генерирует ответ от языковой модели на основе промпта.
+     * Метод отправляет промпт на сервер llama.cpp и получает ответ от языковой модели.
+     * Промпт форматируется в соответствии с требованиями модели TinyLlama.
+     *
+     * Параметры генерации:
+     * - n_predict: 256 токенов (~200 слов) - оптимальная длина для RAG ответов
+     * - temperature: 0.1 - низкая креативность для точных ответов
+     * - top_k: 10 - ограничение выбора для стабильности
+     * - top_p: 0.3 - ядерная выборка для качества
+     * - repeat_penalty: 1.1 - предотвращение повторов
+     */
+    public function generateCompletion(string $prompt): string
+    {
+        if (!$this->ensureModelLoaded()) {
+            return 'Извините, модель временно недоступна. Попробуйте позже.';
+        }
+
+        $formattedPrompt = "<|user|>\n{$prompt}\n<|assistant|>\n";
+
+        try {
+            $response = $this->httpClient->post($this->llamaCppUrl . '/completion', [
+                'json' => [
+                    'prompt' => $formattedPrompt,
+                    'n_predict' => 256,
+                    'temperature' => 0.1,
+                    'top_k' => 10,
+                    'top_p' => 0.3,
+                    'repeat_penalty' => 1.1,
+                    'stop' => ["<|user|>", "<|assistant|>", "<|system|>"]
+                ],
+                'timeout' => 90
+            ]);
+
+            if ($response->getStatusCode() === 200) {
+                $data = json_decode($response->getBody()->getContents(), true);
+                $content = $data['content'] ?? 'Не удалось получить ответ от модели.';
+
+                $content = trim($content);
+
+                $content = preg_replace('/<\|[^|]*\|>/', '', $content);
+
+                return trim($content);
+            }
+
+            $this->logger->warning('Completion generation failed', ['status' => $response->getStatusCode()]);
+            return 'Произошла ошибка при генерации ответа.';
+        } catch (RequestException $e) {
+            $this->logger->error('Error generating completion', ['error' => $e->getMessage()]);
+            return 'Произошла ошибка при обращении к модели.';
+        }
+    }
 }
