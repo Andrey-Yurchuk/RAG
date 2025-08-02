@@ -215,4 +215,71 @@ class LlamaCppAdapter
             return 'Произошла ошибка при обращении к модели.';
         }
     }
+
+    /**
+     * Обрабатывает RAG промпт и оптимизирует его для лучшего ответа
+     *
+     * Метод анализирует входящий промпт и определяет, содержит ли он структурированный
+     * контекст и вопрос. Если да, то применяет оптимизацию для улучшения качества ответа.
+     *
+     * Поддерживает два формата:
+     * - Русский: "Контекст: ... Вопрос: ..."
+     * - Английский: "Context: ... Question: ..."
+     */
+    public function processRAGPrompt(string $prompt): string
+    {
+        if (str_contains($prompt, 'Контекст:')) {
+            $contextStart = strpos($prompt, 'Контекст:');
+            $contextEnd = strpos($prompt, "\n\nВопрос:");
+            if ($contextEnd === false) $contextEnd = strlen($prompt);
+
+            $context = trim(substr($prompt, $contextStart + 9, $contextEnd - $contextStart - 9));
+
+            $questionStart = strpos($prompt, 'Вопрос:');
+            if ($questionStart !== false) {
+                $question = trim(substr($prompt, $questionStart + 7));
+
+                if (str_ends_with($question, "\n\nОтвет на русском языке:")) {
+                    $question = trim(substr($question, 0, -26));
+                }
+
+                return $this->optimizeRagPrompt($context, $question);
+            }
+        } elseif (str_contains($prompt, 'Context:')) {
+            $contextStart = strpos($prompt, 'Context:');
+            $contextEnd = strpos($prompt, "\n\nQuestion:");
+            if ($contextEnd === false) $contextEnd = strlen($prompt);
+
+            $context = trim(substr($prompt, $contextStart + 8, $contextEnd - $contextStart - 8));
+
+            $questionStart = strpos($prompt, 'Question:');
+            if ($questionStart !== false) {
+                $question = trim(substr($prompt, $questionStart + 9));
+
+                if (str_ends_with($question, "\n\nAnswer in English:")) {
+                    $question = trim(substr($question, 0, -20));
+                }
+
+                $optimizedPrompt = "You are an AI assistant for working with documentation. Important: Answer in English!
+
+                Context from documentation:
+                {$context}
+
+                Question: {$question}
+
+                MANDATORY requirements for the answer:
+                - Answer in English
+                - Use only information from the provided context
+                - Structure the answer clearly and logically
+                - If the context contains step-by-step instructions, include them fully
+                - If the context doesn't contain the needed information, say: \"The provided context does not contain information to answer this question\"
+
+                Your answer in English:";
+
+                return $optimizedPrompt;
+            }
+        }
+
+        return $prompt;
+    }
 }
