@@ -49,9 +49,26 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
         $this->logger->debug('Document saved', ['document_id' => $document->getId()->toString()]);
     }
 
+    /**
+     * Находит документ по его идентификатору
+     */
     public function findById(UuidInterface $id): ?Document
     {
-        // TODO: Implement findById() method.
+        $sql = 'SELECT * FROM documents WHERE id = :id';
+        $result = $this->connection->fetchAssociative($sql, ['id' => $id->toString()]);
+
+        if (!$result) {
+            return null;
+        }
+
+        $document = Document::fromArray($result);
+
+        $chunks = $this->findChunksByDocumentId($id);
+        foreach ($chunks as $chunk) {
+            $document->addChunk($chunk);
+        }
+
+        return $document;
     }
 
     public function findAll(int $limit = self::DEFAULT_LIMIT, int $offset = self::DEFAULT_OFFSET): array
