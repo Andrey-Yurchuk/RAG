@@ -71,9 +71,23 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
         return $document;
     }
 
+    /**
+     * Возвращает список всех документов с пагинацией
+     */
     public function findAll(int $limit = self::DEFAULT_LIMIT, int $offset = self::DEFAULT_OFFSET): array
     {
-        // TODO: Implement findAll() method.
+        $sql = 'SELECT * FROM documents ORDER BY created_at DESC LIMIT :limit OFFSET :offset';
+        $results = $this->connection->fetchAllAssociative($sql, [
+            'limit' => $limit,
+            'offset' => $offset
+        ]);
+
+        $documents = [];
+        foreach ($results as $result) {
+            $documents[] = Document::fromArray($result);
+        }
+
+        return $documents;
     }
 
     public function delete(UuidInterface $id): bool
