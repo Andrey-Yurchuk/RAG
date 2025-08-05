@@ -90,9 +90,21 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
         return $documents;
     }
 
+    /**
+     * Удаляет документ
+     */
     public function delete(UuidInterface $id): bool
     {
-        // TODO: Implement delete() method.
+        $sql = 'DELETE FROM documents WHERE id = :id';
+        $affectedRows = $this->connection->executeStatement($sql, ['id' => $id->toString()]);
+
+        $success = $affectedRows > 0;
+
+        if ($success) {
+            $this->logger->debug('Document deleted', ['document_id' => $id->toString()]);
+        }
+
+        return $success;
     }
 
     public function saveChunk(DocumentChunk $chunk): void
