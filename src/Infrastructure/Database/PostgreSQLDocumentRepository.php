@@ -107,9 +107,30 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
         return $success;
     }
 
+    /**
+     * Сохраняет фрагмент (чанк) документа в базу данных (insert или update при конфликте)
+     */
     public function saveChunk(DocumentChunk $chunk): void
     {
-        // TODO: Implement saveChunk() method.
+        $data = [
+            'id' => $chunk->getId()->toString(),
+            'document_id' => $chunk->getDocumentId()->toString(),
+            'chunk_text' => $chunk->getChunkText(),
+            'chunk_index' => $chunk->getChunkIndex(),
+            'embedding' => $chunk->getEmbedding() ? json_encode($chunk->getEmbedding()) : null,
+            'created_at' => $chunk->getCreatedAt()->format('Y-m-d H:i:s'),
+        ];
+
+        $sql = '
+            INSERT INTO document_chunks (id, document_id, chunk_text, chunk_index, embedding, created_at)
+            VALUES (:id, :document_id, :chunk_text, :chunk_index, :embedding::vector, :created_at)
+            ON CONFLICT (id) DO UPDATE SET
+                chunk_text = EXCLUDED.chunk_text,
+                chunk_index = EXCLUDED.chunk_index,
+                embedding = EXCLUDED.embedding
+        ';
+
+        $this->connection->executeStatement($sql, $data);
     }
 
     public function findChunksByDocumentId(UuidInterface $documentId): array
