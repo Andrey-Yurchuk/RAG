@@ -133,9 +133,27 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
         $this->connection->executeStatement($sql, $data);
     }
 
+    /**
+     * Находит все фрагменты (чанки) документа по его идентификатору
+     */
     public function findChunksByDocumentId(UuidInterface $documentId): array
     {
-        // TODO: Implement findChunksByDocumentId() method.
+        $sql = 'SELECT * FROM document_chunks WHERE document_id = :document_id ORDER BY chunk_index';
+        $results = $this->connection->fetchAllAssociative($sql, [
+            'document_id' => $documentId->toString()
+        ]);
+
+        $chunks = [];
+        foreach ($results as $result) {
+            // Преобразуем embedding из JSON-строки обратно в массив
+            if ($result['embedding']) {
+                $result['embedding'] = json_decode($result['embedding'], true, 512, JSON_THROW_ON_ERROR);
+            }
+
+            $chunks[] = DocumentChunk::fromArray($result);
+        }
+
+        return $chunks;
     }
 
     public function searchSimilarChunks(array $queryEmbedding, int $limit = self::DEFAULT_SEARCH_LIMIT, float $threshold = self::DEFAULT_SIMILARITY_THRESHOLD): array
