@@ -156,13 +156,67 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
         return $chunks;
     }
 
-    public function searchSimilarChunks(array $queryEmbedding, int $limit = self::DEFAULT_SEARCH_LIMIT, float $threshold = self::DEFAULT_SIMILARITY_THRESHOLD): array
+    /**
+     * Ищет похожие фрагменты (чанки) документов по векторному представлению запроса
+     */
+    public function searchSimilarChunks(array $queryEmbedding, int $limit = 10, float $threshold = 0.8): array
     {
-        // TODO: Implement searchSimilarChunks() method.
+        $embeddingJson = json_encode($queryEmbedding, JSON_THROW_ON_ERROR);
+
+        $sql = '
+            SELECT 
+                dc.*,
+                d.title,
+                d.file_path,
+                (1 - (embedding <=> :embedding::vector)) as similarity
+            FROM document_chunks dc
+            JOIN documents d ON dc.document_id = d.id
+            WHERE dc.embedding IS NOT NULL
+            AND (1 - (embedding <=> :embedding::vector)) >= :threshold
+            ORDER BY similarity DESC
+            LIMIT :limit
+        ';
+
+        $results = $this->connection->fetchAllAssociative($sql, [
+            'embedding' => $embeddingJson,
+            'threshold' => $threshold,
+            'limit' => $limit
+        ]);
+
+        $chunks = [];
+        foreach ($results as $result) {
+            if ($result['embedding']) {
+                $result['embedding'] = json_decode($result['embedding'], true);
+            }
+
+            $chunks[] = array_merge($result, [
+                'similarity_score' => $result['similarity']
+            ]);
+        }
+
+        $this->logger->debug('Similar chunks search completed', [
+            'results_count' => count($chunks),
+            'threshold' => $threshold
+        ]);
+
+        return $chunks;
     }
 
+    /**
+     * Удаляет все фрагменты документа по идентификатору документа
+     */
     public function deleteChunksByDocumentId(UuidInterface $documentId): bool
     {
-        // TODO: Implement deleteChunksByDocumentId() method.
+        $sql = 'DELETE FROM document_chunks WHERE document_id = :document_id';
+        $affectedRows = $this->connection->executeStatement($sql, [
+            'document_id' => $documentId->toString()
+        ]);
+
+        $this->logger->debug('Document chunks deleted', [
+            'document_id' => $documentId->toString(),
+            'deleted_count' => $affectedRows
+        ]);
+
+        return $affectedRows > 0;
     }
 }
