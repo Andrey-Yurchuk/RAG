@@ -62,9 +62,28 @@ class PostgreSQLQueryRepository implements QueryRepositoryInterface
         return Query::fromArray($result);
     }
 
-    public function findAll(int $limit = self::DEFAULT_LIMIT, int $offset = self::DEFAULT_OFFSET): array
+    /**
+     * Находит все запросы
+     */
+    public function findAll(int $limit = 10, int $offset = 0): array
     {
-        // TODO: Implement findAll() method.
+        $sql = 'SELECT * FROM queries ORDER BY created_at DESC LIMIT :limit OFFSET :offset';
+        $results = $this->connection->fetchAllAssociative($sql, [
+            'limit' => $limit,
+            'offset' => $offset
+        ]);
+
+        $queries = [];
+        foreach ($results as $result) {
+            // Преобразуем embedding из JSON строки обратно в массив
+            if ($result['query_embedding']) {
+                $result['query_embedding'] = json_decode($result['query_embedding'], true);
+            }
+
+            $queries[] = Query::fromArray($result);
+        }
+
+        return $queries;
     }
 
     public function findSimilarQueries(array $queryEmbedding, int $limit = self::DEFAULT_SIMILAR_SEARCH_LIMIT, float $threshold = self::DEFAULT_SIMILARITY_THRESHOLD): array
