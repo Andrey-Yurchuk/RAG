@@ -86,13 +86,63 @@ class PostgreSQLQueryRepository implements QueryRepositoryInterface
         return $queries;
     }
 
-    public function findSimilarQueries(array $queryEmbedding, int $limit = self::DEFAULT_SIMILAR_SEARCH_LIMIT, float $threshold = self::DEFAULT_SIMILARITY_THRESHOLD): array
+    /**
+     * Находит похожие запросы по векторному сходству
+     */
+    public function findSimilarQueries(array $queryEmbedding, int $limit = 5, float $threshold = 0.9): array
     {
-        // TODO: Implement findSimilarQueries() method.
+        $embeddingJson = json_encode($queryEmbedding);
+
+        $sql = '
+            SELECT 
+                *,
+                (1 - (query_embedding <=> :embedding::vector)) as similarity
+            FROM queries
+            WHERE query_embedding IS NOT NULL
+            AND (1 - (query_embedding <=> :embedding::vector)) >= :threshold
+            ORDER BY similarity DESC
+            LIMIT :limit
+        ';
+
+        $results = $this->connection->fetchAllAssociative($sql, [
+            'embedding' => $embeddingJson,
+            'threshold' => $threshold,
+            'limit' => $limit
+        ]);
+
+        $queries = [];
+        foreach ($results as $result) {
+            if ($result['query_embedding']) {
+                $result['query_embedding'] = json_decode($result['query_embedding'], true);
+            }
+
+            $queries[] = array_merge($result, [
+                'similarity_score' => $result['similarity']
+            ]);
+        }
+
+        $this->logger->debug('Similar queries search completed', [
+            'results_count' => count($queries),
+            'threshold' => $threshold
+        ]);
+
+        return $queries;
     }
 
+    /**
+     * Удаляет запрос по его id
+     */
     public function delete(UuidInterface $id): bool
     {
-        // TODO: Implement delete() method.
+        $sql = 'DELETE FROM queries WHERE id = :id';
+        $affectedRows = $this->connection->executeStatement($sql, ['id' => $id->toString()]);
+
+        $success = $affectedRows > 0;
+
+        if ($success) {
+            $this->logger->debug('Query deleted', ['query_id' => $id->toString()]);
+        }
+
+        return $success;
     }
 }
