@@ -51,4 +51,45 @@ class Router
     {
         $this->routes[$method][$path] = $handler;
     }
+
+    /**
+     * Группирует маршруты с общим префиксом
+     */
+    public function group(string $prefix, callable $callback): void
+    {
+        $originalRoutes = $this->routes;
+        $this->routes = [];
+
+        $callback($this);
+
+        $groupRoutes = $this->routes;
+        $this->routes = $originalRoutes;
+
+        foreach ($groupRoutes as $method => $routes) {
+            foreach ($routes as $path => $handler) {
+                $this->addRoute($method, $prefix . $path, $handler);
+            }
+        }
+    }
+
+    /**
+     * Обрабатывает HTTP запрос и возвращает ответ
+     */
+    public function handle(Request $request): Response
+    {
+        $method = $request->getMethod();
+        $uri = parse_url($request->getUri(), PHP_URL_PATH);
+
+        if (isset($this->routes[$method][$uri])) {
+            return $this->callHandler($this->routes[$method][$uri], $request);
+        }
+
+        foreach ($this->routes[$method] ?? [] as $pattern => $handler) {
+            if ($params = $this->matchPattern($pattern, $uri)) {
+                return $this->callHandler($handler, $request, $params);
+            }
+        }
+
+        return Response::notFound();
+    }
 }
