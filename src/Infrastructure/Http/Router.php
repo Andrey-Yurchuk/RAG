@@ -92,4 +92,43 @@ class Router
 
         return Response::notFound();
     }
+
+    /**
+     * Проверяет соответствие URI шаблону маршрута
+     */
+    private function matchPattern(string $pattern, string $uri): ?array
+    {
+        // Convert pattern like /users/{id} to regex
+        $regex = preg_replace('/\{([^}]+)\}/', '([^/]+)', $pattern);
+        $regex = '#^' . $regex . '$#';
+
+        if (preg_match($regex, $uri, $matches)) {
+            array_shift($matches); // Remove full match
+            return $matches;
+        }
+
+        return null;
+    }
+
+    /**
+     * Вызывает обработчик маршрута
+     */
+    private function callHandler($handler, Request $request, array $params = []): Response
+    {
+        try {
+            if (is_array($handler)) {
+                [$class, $method] = $handler;
+                $controller = $this->container->get($class);
+                return $controller->$method($request, ...$params);
+            }
+
+            if (is_callable($handler)) {
+                return $handler($request, ...$params);
+            }
+
+            throw new \InvalidArgumentException('Invalid handler');
+        } catch (\Throwable $e) {
+            return Response::internalServerError($e->getMessage());
+        }
+    }
 }
