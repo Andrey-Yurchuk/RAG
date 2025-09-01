@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RagSystem\Infrastructure\DependencyInjection;
 
+use InvalidArgumentException;
 use Psr\Container\ContainerInterface;
 
 class Container implements ContainerInterface
@@ -37,13 +38,36 @@ class Container implements ContainerInterface
         $this->instances[$abstract] = $instance;
     }
 
+    /**
+     * Получает экземпляр сервиса по id
+     */
     public function get(string $id)
     {
-        // TODO: Implement get() method.
+        if (isset($this->instances[$id])) {
+            return $this->instances[$id];
+        }
+
+        if (!$this->has($id)) {
+            throw new InvalidArgumentException("Service {$id} not found");
+        }
+
+        $concrete = $this->bindings[$id];
+
+        if (is_callable($concrete)) {
+            $instance = $concrete($this);
+        } else {
+            $instance = $this->build($concrete);
+        }
+
+        $this->instances[$id] = $instance;
+        return $instance;
     }
 
+    /**
+     * Проверяет наличие сервиса в контейнере
+     */
     public function has(string $id): bool
     {
-        // TODO: Implement has() method.
+        return isset($this->bindings[$id]) || class_exists($id);
     }
 }
