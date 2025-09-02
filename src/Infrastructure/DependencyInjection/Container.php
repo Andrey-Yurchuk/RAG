@@ -6,6 +6,7 @@ namespace RagSystem\Infrastructure\DependencyInjection;
 
 use InvalidArgumentException;
 use Psr\Container\ContainerInterface;
+use ReflectionClass;
 
 class Container implements ContainerInterface
 {
@@ -69,5 +70,42 @@ class Container implements ContainerInterface
     public function has(string $id): bool
     {
         return isset($this->bindings[$id]) || class_exists($id);
+    }
+
+    /**
+     * Создает экземпляр класса с автоматическим разрешением зависимостей
+     */
+    private function build(string $class)
+    {
+        $reflection = new ReflectionClass($class);
+
+        if (!$reflection->isInstantiable()) {
+            throw new InvalidArgumentException("Class {$class} is not instantiable");
+        }
+
+        $constructor = $reflection->getConstructor();
+
+        if (!$constructor) {
+            return new $class;
+        }
+
+        $parameters = $constructor->getParameters();
+        $dependencies = [];
+
+        foreach ($parameters as $parameter) {
+            $type = $parameter->getType();
+
+            if (!$type || $type->isBuiltin()) {
+                if ($parameter->isDefaultValueAvailable()) {
+                    $dependencies[] = $parameter->getDefaultValue();
+                } else {
+                    throw new InvalidArgumentException("Cannot resolve parameter {$parameter->getName()}");
+                }
+            } else {
+                $dependencies[] = $this->get($type->getName());
+            }
+        }
+
+        return $reflection->newInstanceArgs($dependencies);
     }
 }
