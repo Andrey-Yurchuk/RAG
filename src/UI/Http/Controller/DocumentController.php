@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RagSystem\UI\Http\Controller;
 
 use Exception;
+use InvalidArgumentException;
 use RagSystem\Infrastructure\Http\Request;
 use RagSystem\Infrastructure\Http\Response;
 use RagSystem\Application\Service\DocumentService;
@@ -56,6 +57,34 @@ class DocumentController
         } catch (Exception $e) {
             $this->logger->error('Failed to fetch documents', ['error' => $e->getMessage()]);
             return Response::internalServerError('Failed to fetch documents');
+        }
+    }
+
+    /**
+     * Возвращает документ по ID
+     */
+    public function show(Request $request, string $id): Response
+    {
+        try {
+            $documentId = Uuid::fromString($id);
+            $document = $this->documentService->getDocument($documentId);
+
+            if (!$document) {
+                return Response::notFound('Document not found');
+            }
+
+            return Response::json([
+                'success' => true,
+                'data' => $document->toArray()
+            ]);
+        } catch (InvalidArgumentException $e) {
+            return Response::badRequest('Invalid document ID');
+        } catch (Exception $e) {
+            $this->logger->error('Failed to fetch document', [
+                'document_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return Response::internalServerError('Failed to fetch document');
         }
     }
 }
