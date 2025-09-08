@@ -87,4 +87,73 @@ class DocumentController
             return Response::internalServerError('Failed to fetch document');
         }
     }
+
+    /**
+     * Создает новый документ
+     */
+    public function store(Request $request): Response
+    {
+        try {
+            $data = $request->getBody();
+
+            if (!isset($data['title']) || !isset($data['content'])) {
+                return Response::badRequest('Title and content are required');
+            }
+
+            $title = $data['title'];
+            $content = $data['content'];
+            $filePath = $data['file_path'] ?? null;
+            $fileType = $data['file_type'] ?? null;
+
+            $document = $this->documentService->createDocument($title, $content, $filePath, $fileType);
+
+            return Response::json([
+                'success' => true,
+                'data' => $document->toArray(),
+                'message' => 'Document created successfully'
+            ], 201);
+        } catch (Exception $e) {
+            $this->logger->error('Failed to create document', ['error' => $e->getMessage()]);
+            return Response::internalServerError('Failed to create document');
+        }
+    }
+
+    /**
+     * Обновляет существующий документ
+     */
+    public function update(Request $request, string $id): Response
+    {
+        try {
+            $documentId = Uuid::fromString($id);
+            $data = $request->getBody();
+
+            if (!isset($data['title']) || !isset($data['content'])) {
+                return Response::badRequest('Title and content are required');
+            }
+
+            $document = $this->documentService->updateDocument(
+                $documentId,
+                $data['title'],
+                $data['content']
+            );
+
+            if (!$document) {
+                return Response::notFound('Document not found');
+            }
+
+            return Response::json([
+                'success' => true,
+                'data' => $document->toArray(),
+                'message' => 'Document updated successfully'
+            ]);
+        } catch (InvalidArgumentException $e) {
+            return Response::badRequest('Invalid document ID');
+        } catch (Exception $e) {
+            $this->logger->error('Failed to update document', [
+                'document_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return Response::internalServerError('Failed to update document');
+        }
+    }
 }
