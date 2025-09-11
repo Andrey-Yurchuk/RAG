@@ -156,4 +156,32 @@ class DocumentController
             return Response::internalServerError('Failed to update document');
         }
     }
+
+    /**
+     * Удаляет документ по ID
+     */
+    public function destroy(Request $request, string $id): Response
+    {
+        try {
+            $documentId = Uuid::fromString($id);
+            $success = $this->documentService->deleteDocument($documentId);
+
+            if (!$success) {
+                return Response::notFound('Document not found');
+            }
+
+            return Response::json([
+                'success' => true,
+                'message' => 'Document deleted successfully'
+            ]);
+        } catch (InvalidArgumentException $e) {
+            return Response::badRequest('Invalid document ID');
+        } catch (Exception $e) {
+            $this->logger->error('Failed to delete document', [
+                'document_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return Response::internalServerError('Failed to delete document');
+        }
+    }
 }
