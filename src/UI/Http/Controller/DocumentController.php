@@ -184,4 +184,151 @@ class DocumentController
             return Response::internalServerError('Failed to delete document');
         }
     }
+
+    /**
+     * Загружает и обрабатывает файл для создания документа
+     */
+    public function upload(Request $request): Response
+    {
+        $this->logger->info('File upload request received', [
+            'content_type' => $request->getHeader('Content-Type'),
+            'method' => $request->getMethod(),
+            'files_count' => count($request->getFiles())
+        ]);
+
+        try {
+            $uploadedFile = $request->getFile('file');
+
+            if (!$uploadedFile) {
+                $this->logger->error('No file uploaded', ['request_files' => $request->getFiles()]);
+                return Response::badRequest('No file uploaded');
+            }
+
+            $this->logger->info('File upload details', [
+                'file_name' => $uploadedFile['name'],
+                'file_size' => $uploadedFile['size'],
+                'file_type' => $uploadedFile['type'],
+                'file_error' => $uploadedFile['error']
+            ]);
+
+            if ($uploadedFile['error'] !== UPLOAD_ERR_OK) {
+                $this->logger->error('File upload error', [
+                    'error_code' => $uploadedFile['error'],
+                    'error_message' => $this->getUploadErrorMessage($uploadedFile['error'])
+                ]);
+                return Response::badRequest('File upload failed: ' . $this->getUploadErrorMessage($uploadedFile['error']));
+            }
+
+            $filePath = $uploadedFile['tmp_name'];
+            $fileName = $uploadedFile['name'];
+
+            $this->logger->info('File name debugging', [
+                'original_name' => $uploadedFile['name'],
+                'file_name' => $fileName,
+                'pathinfo_result' => pathinfo($fileName),
+                'extension_raw' => pathinfo($fileName, PATHINFO_EXTENSION)
+            ]);
+
+            $fileType = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+            // Handle case where file extension is empty
+            if (empty($fileType)) {
+                // Try to detect file type by content for files without extension
+                $mimeType = mime_content_type($filePath);
+                $this->logger->info('File without extension detected', [
+                    'file_name' => $fileName,
+                    'mime_type' => $mimeType,
+                    'original_name' => $uploadedFile['name']
+                ]);
+
+                // If it's a text file, treat it as .txt
+                if (strpos($mimeType, 'text/') === 0 || $mimeType === 'application/octet-stream') {
+                    $fileType = 'txt';
+                    $this->logger->info('File without extension treated as text file', [
+                        'file_name' => $fileName,
+                        'assigned_type' => $fileType
+                    ]);
+                } else {
+                    $this->logger->error('File has no extension and unknown MIME type', [
+                        'file_name' => $fileName,
+                        'mime_type' => $mimeType,
+                        'original_name' => $uploadedFile['name'],
+                        'pathinfo_debug' => pathinfo($fileName)
+                    ]);
+                    return Response::badRequest('File must have a valid extension (txt, md, html, pdf, docx, doc) or be a recognizable text file');
+                }
+            }
+
+            // Check if file type is supported
+            $supportedTypes = ['txt', 'md', 'html', 'pdf', 'docx', 'doc'];
+            if (!in_array($fileType, $supportedTypes)) {
+                $this->logger->error('Unsupported file type', [
+                    'file_type' => $fileType,
+                    'file_name' => $fileName,
+                    'supported_types' => $supportedTypes
+                ]);
+                return Response::badRequest('Unsupported file type: ' . $fileType . '. Supported types: ' . implode(', ', $supportedTypes));
+            }
+
+            $this->logger->info('Processing file', [
+                'file_path' => $filePath,
+                'file_name' => $fileName,
+                'file_type' => $fileType
+            ]);
+
+            // Extract text from file
+            $content = $this->textProcessingService->extractTextFromFile($filePath, $fileType);
+
+            if (empty($content)) {
+                $this->logger->error('Empty content extracted from file', [
+                    'file_name' => $fileName,
+                    'file_type' => $fileType
+                ]);
+                return Response::badRequest('Could not extract text from file');
+            }
+
+            $this->logger->info('Text extracted successfully', [
+                'file_name' => $fileName,
+                'content_length' => strlen($content)
+            ]);
+
+            // Move file to permanent location
+            $targetPath = '/app/storage/uploads/' . uniqid('', true) . '_' . $fileName;
+
+            // Create uploads directory if it doesn't exist
+            $uploadsDir = dirname($targetPath);
+            if (!is_dir($uploadsDir)) {
+                if (!mkdir($uploadsDir, 0755, true) && !is_dir($uploadsDir)) {
+                    throw new \RuntimeException(sprintf('Directory "%s" was not created', $uploadsDir));
+                }
+            }
+
+            move_uploaded_file($filePath, $targetPath);
+
+            // Create document
+            $document = $this->documentService->createDocument(
+                $fileName,
+                $content,
+                $targetPath,
+                $fileType
+            );
+
+            $this->logger->info('Document created successfully', [
+                'document_id' => $document->getId()->toString(),
+                'file_name' => $fileName
+            ]);
+
+            return Response::json([
+                'success' => true,
+                'data' => $document->toArray(),
+                'message' => 'File uploaded and processed successfully'
+            ], 201);
+        } catch (Exception $e) {
+            $this->logger->error('Failed to upload file', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return Response::internalServerError('Failed to upload file: ' . $e->getMessage());
+        }
+    }
 }
