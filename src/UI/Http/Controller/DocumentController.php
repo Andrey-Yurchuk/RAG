@@ -331,4 +331,29 @@ class DocumentController
             return Response::internalServerError('Failed to upload file: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Возвращает описание ошибки загрузки файла по коду
+     */
+    private function getUploadErrorMessage(int $errorCode): string
+    {
+        switch ($errorCode) {
+            case UPLOAD_ERR_INI_SIZE:
+                return 'File too large (exceeds upload_max_filesize)';
+            case UPLOAD_ERR_FORM_SIZE:
+                return 'File too large (exceeds MAX_FILE_SIZE)';
+            case UPLOAD_ERR_PARTIAL:
+                return 'File was only partially uploaded';
+            case UPLOAD_ERR_NO_FILE:
+                return 'No file was uploaded';
+            case UPLOAD_ERR_NO_TMP_DIR:
+                return 'Missing temporary folder';
+            case UPLOAD_ERR_CANT_WRITE:
+                return 'Failed to write file to disk';
+            case UPLOAD_ERR_EXTENSION:
+                return 'File upload stopped by extension';
+            default:
+                return 'Unknown upload error';
+        }
+    }
 }
