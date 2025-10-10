@@ -46,6 +46,8 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     container_name: rag-postgres
+    ports:
+      - "${DB_EXTERNAL_PORT:-5433}:5432"
     environment:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}
