@@ -56,6 +56,9 @@ class LlamaCppAdapter
      */
     public function generateEmbedding(string $text): array
     {
+        $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text);
+        
         // Простое кэширование на основе хеша текста
         $textHash = md5($text);
         if (isset($this->embeddingCache[$textHash])) {
@@ -181,6 +184,9 @@ class LlamaCppAdapter
             return 'Извините, модель временно недоступна. Попробуйте позже.';
         }
 
+        $prompt = mb_convert_encoding($prompt, 'UTF-8', 'UTF-8');
+        $prompt = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $prompt);
+        
         $formattedPrompt = "<|user|>\n{$prompt}\n<|assistant|>\n";
 
         try {
