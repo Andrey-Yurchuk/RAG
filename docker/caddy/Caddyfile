@@ -6,15 +6,22 @@
 localhost:80, localhost:443 {
     root * /app/public
 
-    php_server
+    handle /assets/* {
+        file_server
+    }
+    
+    handle /favicon.ico {
+        file_server
+    }
 
     handle /api/* {
         php_fastcgi unix//var/run/php/php8.4-fpm.sock
     }
 
-    file_server
-
-    try_files {path} {path}/ /index.php?{query}
+    handle {
+        php_server
+        try_files {path} {path}/ /index.php?{query}
+    }
 
     header {
         X-Content-Type-Options nosniff

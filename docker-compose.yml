@@ -11,6 +11,7 @@ services:
       - ./src:/app/src
       - ./config:/app/config
       - ./storage:/app/storage
+      - ./public:/app/public
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
     environment:
       - SERVER_NAME=${SERVER_NAME:-localhost}
