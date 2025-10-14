@@ -15,7 +15,7 @@ localhost:80, localhost:443 {
     }
 
     handle /api/* {
-        php_fastcgi unix//var/run/php/php8.4-fpm.sock
+        php_server
     }
 
     handle {

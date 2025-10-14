@@ -25,7 +25,7 @@ final class Query
     public static function fromArray(array $data): self
     {
         $query = new self(
-            $data['queryText'],
+            $data['queryText'] ?? '',
             $data['queryEmbedding'] ?? null,
             $data['response'] ?? null
         );
