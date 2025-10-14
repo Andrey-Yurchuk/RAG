@@ -12,7 +12,8 @@ class Request
         private array $headers = [],
         private array $query = [],
         private array $body = [],
-        private array $files = []
+        private array $files = [],
+        private array $pathParams = []
     ) {
         $this->method = strtoupper($method);
     }
@@ -38,6 +39,16 @@ class Request
         }
 
         return new self($method, $uri, $headers, $query, $body, $files);
+    }
+
+    /**
+     * Создает объект Request с параметрами пути
+     */
+    public static function withPathParams(array $pathParams): self
+    {
+        $request = self::fromGlobals();
+        $request->pathParams = $pathParams;
+        return $request;
     }
 
     /**
@@ -159,5 +170,21 @@ class Request
     public function isDelete(): bool
     {
         return $this->method === 'DELETE';
+    }
+
+    /**
+     * Получает все параметры пути
+     */
+    public function getPathParams(): array
+    {
+        return $this->pathParams;
+    }
+
+    /**
+     * Получает значение конкретного параметра пути
+     */
+    public function getPathParam(string $name): ?string
+    {
+        return $this->pathParams[$name] ?? null;
     }
 }

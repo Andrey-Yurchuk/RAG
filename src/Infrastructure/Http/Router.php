@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace RagSystem\Infrastructure\Http;
 
+use InvalidArgumentException;
 use RagSystem\Infrastructure\DependencyInjection\Container;
+use Throwable;
 
 class Router
 {
@@ -42,6 +44,14 @@ class Router
     public function delete(string $path, $handler): void
     {
         $this->addRoute('DELETE', $path, $handler);
+    }
+
+    /**
+     * Добавляет PATCH маршрут
+     */
+    public function patch(string $path, $handler): void
+    {
+        $this->addRoute('PATCH', $path, $handler);
     }
 
     /**
@@ -116,19 +126,49 @@ class Router
     private function callHandler($handler, Request $request, array $params = []): Response
     {
         try {
+            $pathParams = [];
+            if (!empty($params)) {
+                $pattern = $this->getPatternForHandler($handler);
+                if ($pattern) {
+                    preg_match_all('/\{([^}]+)\}/', $pattern, $paramNames);
+                    foreach ($paramNames[1] as $index => $paramName) {
+                        if (isset($params[$index])) {
+                            $pathParams[$paramName] = $params[$index];
+                        }
+                    }
+                }
+            }
+
+            $requestWithParams = Request::withPathParams($pathParams);
+
             if (is_array($handler)) {
                 [$class, $method] = $handler;
                 $controller = $this->container->get($class);
-                return $controller->$method($request, ...$params);
+                return $controller->$method($requestWithParams);
             }
 
             if (is_callable($handler)) {
-                return $handler($request, ...$params);
+                return $handler($requestWithParams);
             }
 
-            throw new \InvalidArgumentException('Invalid handler');
-        } catch (\Throwable $e) {
+            throw new InvalidArgumentException('Invalid handler');
+        } catch (Throwable $e) {
             return Response::internalServerError($e->getMessage());
         }
+    }
+
+    /**
+     * Получает паттерн маршрута для обработчика
+     */
+    private function getPatternForHandler($handler): ?string
+    {
+        foreach ($this->routes as $method => $routes) {
+            foreach ($routes as $pattern => $routeHandler) {
+                if ($routeHandler === $handler) {
+                    return $pattern;
+                }
+            }
+        }
+        return null;
     }
 }

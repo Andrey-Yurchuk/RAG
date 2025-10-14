@@ -16,7 +16,8 @@ final class Query
     public function __construct(
         private string $queryText,
         private ?array $queryEmbedding = null,
-        private ?string $response = null
+        private ?string $response = null,
+        private ?float $responseTime = null
     ) {
         $this->id = Uuid::uuid4();
         $this->createdAt = new DateTimeImmutable();
@@ -25,17 +26,21 @@ final class Query
     public static function fromArray(array $data): self
     {
         $query = new self(
-            $data['queryText'] ?? '',
-            $data['queryEmbedding'] ?? null,
-            $data['response'] ?? null
+            $data['queryText'] ?? $data['query_text'] ?? '',
+            $data['queryEmbedding'] ?? $data['query_embedding'] ?? null,
+            $data['response'] ?? null,
+            isset($data['responseTime']) || isset($data['response_time']) 
+                ? (float)($data['responseTime'] ?? $data['response_time']) 
+                : null
         );
 
         if (isset($data['id'])) {
             $query->id = Uuid::fromString($data['id']);
         }
 
-        if (isset($data['createdAt'])) {
-            $query->createdAt = new DateTimeImmutable($data['createdAt']);
+        if (isset($data['createdAt']) || isset($data['created_at'])) {
+            $createdAt = $data['createdAt'] ?? $data['created_at'];
+            $query->createdAt = new DateTimeImmutable($createdAt);
         }
 
         return $query;
@@ -76,6 +81,16 @@ final class Query
         $this->response = $response;
     }
 
+    public function getResponseTime(): ?float
+    {
+        return $this->responseTime;
+    }
+
+    public function setResponseTime(?float $responseTime): void
+    {
+        $this->responseTime = $responseTime;
+    }
+
     public function hasEmbedding(): bool
     {
         return $this->queryEmbedding !== null;
@@ -93,6 +108,7 @@ final class Query
             'queryText' => $this->queryText,
             'queryEmbedding' => $this->queryEmbedding,
             'response' => $this->response,
+            'responseTime' => $this->responseTime,
             'createdAt' => $this->createdAt->format('Y-m-d H:i:s'),
         ];
     }

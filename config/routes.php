@@ -31,4 +31,5 @@ $router->group('/api/v1', function ($router) {
     $router->post('/search', [QueryController::class, 'search']);
     $router->get('/queries', [QueryController::class, 'history']);
     $router->post('/queries/similar', [QueryController::class, 'similar']);
+    $router->patch('/query/{id}', [QueryController::class, 'updateResponseTime']);
 });

@@ -111,19 +111,32 @@ class RAGApp {
         loadingElement.style.display = 'block';
         resultsSection.style.display = 'none';
 
+        // Start timing
+        const startTime = performance.now();
+
         try {
             const response = await fetch(`${this.API_BASE}/api/v1/query`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ query: queryText }),
+                body: JSON.stringify({ 
+                    query: queryText,
+                    response_time: null // Will be calculated after response
+                }),
             });
 
             const data = await response.json();
 
             if (data.success) {
-                this.displayQueryResult(data.data);
+                // Calculate response time
+                const endTime = performance.now();
+                const responseTime = (endTime - startTime) / 1000;
+                
+                // Update the query with response time
+                await this.updateQueryWithResponseTime(data.data.query_id, responseTime);
+                
+                this.displayQueryResult(data.data, responseTime);
                 this.showToast('Ответ получен успешно!', 'success');
             } else {
                 throw new Error(data.message || 'Ошибка при обработке запроса');
@@ -135,20 +148,48 @@ class RAGApp {
         }
     }
 
-    displayQueryResult(data) {
+    displayQueryResult(data, responseTime = null) {
         const resultsSection = document.getElementById('resultsSection');
         const resultContent = document.getElementById('resultContent');
         const resultMeta = document.getElementById('resultMeta');
 
         resultContent.textContent = data.response;
-        resultMeta.innerHTML = `
+        
+        let metaHTML = `
             <i class="fas fa-clock"></i> ${data.created_at}
             <span style="margin-left: 1rem;">
                 <i class="fas fa-fingerprint"></i> ID: ${data.query_id}
             </span>
         `;
+        
+        if (responseTime !== null) {
+            metaHTML += `
+                <span style="margin-left: 1rem;">
+                    <i class="fas fa-stopwatch"></i> ${responseTime.toFixed(1)} сек
+                </span>
+            `;
+        }
 
+        resultMeta.innerHTML = metaHTML;
         resultsSection.style.display = 'block';
+    }
+
+    async updateQueryWithResponseTime(queryId, responseTime) {
+        try {
+            console.log('Updating response time:', { queryId, responseTime });
+            const response = await fetch(`${this.API_BASE}/api/v1/query/${queryId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ response_time: responseTime }),
+            });
+            
+            const data = await response.json();
+            console.log('Response time update result:', data);
+        } catch (error) {
+            console.warn('Failed to update response time:', error);
+        }
     }
 
     // Document Management
@@ -534,6 +575,11 @@ class RAGApp {
                     <span style="margin-left: 1rem;">
                         <i class="fas fa-fingerprint"></i> ${query.query_id}
                     </span>
+                    ${query.response_time ? `
+                        <span style="margin-left: 1rem;">
+                            <i class="fas fa-stopwatch"></i> ${parseFloat(query.response_time).toFixed(1)} сек
+                        </span>
+                    ` : ''}
                 </div>
             </div>
         `).join('');

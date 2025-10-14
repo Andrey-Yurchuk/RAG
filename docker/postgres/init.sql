@@ -29,6 +29,7 @@ CREATE TABLE queries (
     query_text TEXT NOT NULL,
     query_embedding vector(1536),
     response TEXT,
+    response_time DECIMAL(5,2), -- Response time in seconds (e.g., 2.50)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

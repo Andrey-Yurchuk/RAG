@@ -12,6 +12,7 @@ use RagSystem\Application\Service\EmbeddingService;
 use RagSystem\Application\Service\LLMService;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Ramsey\Uuid\Uuid;
 
 class QueryService
 {
@@ -27,11 +28,15 @@ class QueryService
     /**
      * Обрабатывает запрос и генерирует RAG ответ
      */
-    public function processQuery(string $queryText): Query
+    public function processQuery(string $queryText, ?float $responseTime = null): Query
     {
         $this->logger->info('Processing query', ['query' => $queryText]);
 
         $query = new Query($queryText);
+        
+        if ($responseTime !== null) {
+            $query->setResponseTime($responseTime);
+        }
 
         try {
             // Генерация эмбеддинга для запроса
@@ -141,6 +146,37 @@ class QueryService
             ]);
 
             return [];
+        }
+    }
+
+    /**
+     * Обновляет время ответа для существующего запроса
+     */
+    public function updateResponseTime(string $queryId, float $responseTime): ?Query
+    {
+        try {
+            $query = $this->queryRepository->findById(Uuid::fromString($queryId));
+            
+            if (!$query) {
+                return null;
+            }
+
+            $query->setResponseTime($responseTime);
+            $this->queryRepository->save($query);
+
+            $this->logger->info('Response time updated', [
+                'query_id' => $queryId,
+                'response_time' => $responseTime
+            ]);
+
+            return $query;
+        } catch (Exception $e) {
+            $this->logger->error('Failed to update response time', [
+                'query_id' => $queryId,
+                'response_time' => $responseTime,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
         }
     }
 }

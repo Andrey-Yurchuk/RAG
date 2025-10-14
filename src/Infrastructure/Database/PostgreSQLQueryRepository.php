@@ -25,16 +25,18 @@ class PostgreSQLQueryRepository implements QueryRepositoryInterface
             'query_text' => $query->getQueryText(),
             'query_embedding' => $query->getQueryEmbedding() ? json_encode($query->getQueryEmbedding()) : null,
             'response' => $query->getResponse(),
+            'response_time' => $query->getResponseTime(),
             'created_at' => $query->getCreatedAt()->format('Y-m-d H:i:s'),
         ];
 
         $sql = '
-            INSERT INTO queries (id, query_text, query_embedding, response, created_at)
-            VALUES (:id, :query_text, :query_embedding::vector, :response, :created_at)
+            INSERT INTO queries (id, query_text, query_embedding, response, response_time, created_at)
+            VALUES (:id, :query_text, :query_embedding::vector, :response, :response_time, :created_at)
             ON CONFLICT (id) DO UPDATE SET
                 query_text = EXCLUDED.query_text,
                 query_embedding = EXCLUDED.query_embedding,
-                response = EXCLUDED.response
+                response = EXCLUDED.response,
+                response_time = EXCLUDED.response_time
         ';
 
         $this->connection->executeStatement($sql, $data);

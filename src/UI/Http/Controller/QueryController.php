@@ -31,12 +31,13 @@ class QueryController
             }
 
             $queryText = $data['query'];
+            $responseTime = isset($data['response_time']) ? (float) $data['response_time'] : null;
 
             if (empty(trim($queryText))) {
                 return Response::badRequest('Query cannot be empty');
             }
 
-            $query = $this->queryService->processQuery($queryText);
+            $query = $this->queryService->processQuery($queryText, $responseTime);
 
             return Response::json([
                 'success' => true,
@@ -44,6 +45,7 @@ class QueryController
                     'query_id' => $query->getId()->toString(),
                     'query_text' => $query->getQueryText(),
                     'response' => $query->getResponse(),
+                    'response_time' => $query->getResponseTime(),
                     'created_at' => $query->getCreatedAt()->format('Y-m-d H:i:s')
                 ],
                 'message' => 'Query processed successfully'
@@ -113,6 +115,7 @@ class QueryController
                     'query_id' => $query->getId()->toString(),
                     'query_text' => $query->getQueryText(),
                     'response' => $query->getResponse(),
+                    'response_time' => $query->getResponseTime(),
                     'created_at' => $query->getCreatedAt()->format('Y-m-d H:i:s')
                 ];
             }, $queries);
@@ -168,6 +171,44 @@ class QueryController
                 'error' => $e->getMessage()
             ]);
             return Response::internalServerError('Failed to find similar queries');
+        }
+    }
+
+    /**
+     * Обновляет время ответа для существующего запроса
+     */
+    public function updateResponseTime(Request $request): Response
+    {
+        try {
+            $queryId = $request->getPathParam('id');
+            $data = $request->getBody();
+
+            if (!isset($data['response_time'])) {
+                return Response::badRequest('Response time parameter is required');
+            }
+
+            $responseTime = (float) $data['response_time'];
+
+            $query = $this->queryService->updateResponseTime($queryId, $responseTime);
+
+            if (!$query) {
+                return Response::notFound('Query not found');
+            }
+
+            return Response::json([
+                'success' => true,
+                'data' => [
+                    'query_id' => $query->getId()->toString(),
+                    'response_time' => $query->getResponseTime()
+                ],
+                'message' => 'Response time updated successfully'
+            ]);
+        } catch (Exception $e) {
+            $this->logger->error('Failed to update response time', [
+                'query_id' => $request->getPathParam('id'),
+                'error' => $e->getMessage()
+            ]);
+            return Response::internalServerError('Failed to update response time');
         }
     }
 }
