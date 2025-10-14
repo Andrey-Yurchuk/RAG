@@ -6,10 +6,10 @@ return [
     'llm' => [
         'service_url' => $_ENV['LLAMA_CPP_URL'] ?? 'http://llm-service:8080',
         'model_name' => $_ENV['MODEL_NAME'] ?? $_ENV['LLM_MODEL_PATH'] ?? 'qwen2.5-7b-instruct-q4_k_m.gguf',
-        'max_tokens' => (int)($_ENV['LLM_MAX_TOKENS'] ?? 512),
+        'max_tokens' => (int)($_ENV['LLM_MAX_TOKENS'] ?? 1024),
         'temperature' => (float)($_ENV['LLM_TEMPERATURE'] ?? 0.1),
         'context_size' => (int)($_ENV['LLM_CONTEXT_SIZE'] ?? 4096),
-        'timeout' => (int)($_ENV['LLM_TIMEOUT'] ?? 120),
+        'timeout' => (int)($_ENV['LLM_TIMEOUT'] ?? 300),
     ],
 
     'embedding' => [
