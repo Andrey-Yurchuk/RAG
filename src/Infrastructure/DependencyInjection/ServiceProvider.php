@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace RagSystem\Infrastructure\DependencyInjection;
 
+// Load custom DBAL types
+require_once __DIR__ . '/../../../config/dbal-types.php';
+
 use RagSystem\Domain\Repository\DocumentRepositoryInterface;
 use RagSystem\Domain\Repository\QueryRepositoryInterface;
 use RagSystem\Infrastructure\Database\PostgreSQLDocumentRepository;

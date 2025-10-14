@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/dbal-types.php';
+
+$postgresqlPlatformClass = require __DIR__ . '/postgresql-platform.php';
+
 return [
     'default' => $_ENV['DB_CONNECTION'] ?? 'postgresql',
 
@@ -22,8 +26,4 @@ return [
         ],
     ],
 
-    'migrations' => [
-        'table' => 'migrations',
-        'path' => __DIR__ . '/../database/migrations',
-    ],
 ];
