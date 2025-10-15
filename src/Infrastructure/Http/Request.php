@@ -33,7 +33,11 @@ class Request
 
         if (str_contains($contentType, 'application/json')) {
             $input = file_get_contents('php://input');
-            $body = json_decode($input, true, 512, JSON_THROW_ON_ERROR) ?? [];
+            if (empty($input)) {
+                $body = [];
+            } else {
+                $body = json_decode($input, true, 512, JSON_THROW_ON_ERROR) ?? [];
+            }
         } else {
             $body = $_POST ?? [];
         }

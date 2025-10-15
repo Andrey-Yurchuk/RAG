@@ -3,15 +3,165 @@ class RAGApp {
     constructor() {
         this.API_BASE = window.location.origin;
         this.currentTab = 'query';
+        this.sessionToken = null;
+        this.currentUser = null;
         this.init();
     }
 
     init() {
-        this.setupEventListeners();
-        this.checkSystemStatus();
-        this.loadDocuments();
-        this.loadHistory();
-        this.setupFileUpload();
+        // Проверяем авторизацию при загрузке
+        this.checkAuthStatus();
+    }
+
+    // Authentication Management
+    async checkAuthStatus() {
+        const token = localStorage.getItem('session_token');
+        
+        if (!token) {
+            this.showLoginForm();
+            return;
+        }
+
+        try {
+            const response = await fetch(`${this.API_BASE}/api/v1/auth/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.sessionToken = token;
+                this.currentUser = data.data.user;
+                this.showMainApp();
+                this.setupEventListeners();
+                this.checkSystemStatus();
+                this.loadDocuments();
+                this.loadHistory();
+                this.setupFileUpload();
+            } else {
+                // Токен недействителен
+                localStorage.removeItem('session_token');
+                this.showLoginForm();
+            }
+        } catch (error) {
+            console.error('Auth check failed:', error);
+            localStorage.removeItem('session_token');
+            this.showLoginForm();
+        }
+    }
+
+    showLoginForm() {
+        document.getElementById('loginContainer').style.display = 'flex';
+        document.getElementById('mainApp').style.display = 'none';
+        
+        // Скрываем ошибки при показе формы
+        this.hideLoginError();
+        
+        // Добавляем обработчик формы логина
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm && !loginForm.hasAttribute('data-listener-added')) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                this.login(username, password);
+            });
+            
+            // Добавляем обработчики для скрытия ошибок при вводе
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            
+            if (usernameInput) {
+                usernameInput.addEventListener('input', () => this.hideLoginError());
+            }
+            if (passwordInput) {
+                passwordInput.addEventListener('input', () => this.hideLoginError());
+            }
+            
+            loginForm.setAttribute('data-listener-added', 'true');
+        }
+    }
+
+    showMainApp() {
+        document.getElementById('loginContainer').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        
+        // Обновляем информацию о пользователе
+        if (this.currentUser) {
+            document.getElementById('userName').textContent = `Username: ${this.currentUser.username}`;
+            document.getElementById('userRole').textContent = `Role: ${this.currentUser.role.toLowerCase()}`;
+        }
+    }
+
+    async login(username, password) {
+        // Скрываем предыдущие ошибки
+        this.hideLoginError();
+        
+        // Показываем индикатор загрузки
+        this.showLoginLoading(true);
+        
+        try {
+            const response = await fetch(`${this.API_BASE}/api/v1/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.sessionToken = data.data.session_token;
+                this.currentUser = data.data.user;
+                localStorage.setItem('session_token', this.sessionToken);
+                
+                this.showMainApp();
+                this.setupEventListeners();
+                this.checkSystemStatus();
+                this.loadDocuments();
+                this.loadHistory();
+                this.setupFileUpload();
+                
+                this.showToast('Вход выполнен успешно!', 'success');
+                return true;
+            } else {
+                // Отображаем ошибку в форме логина
+                this.showLoginError(data.message || 'Ошибка авторизации');
+                return false;
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            // Отображаем ошибку в форме логина
+            this.showLoginError(`Ошибка: ${error.message}`);
+            return false;
+        } finally {
+            // Скрываем индикатор загрузки
+            this.showLoginLoading(false);
+        }
+    }
+
+    async logout() {
+        try {
+            if (this.sessionToken) {
+                await fetch(`${this.API_BASE}/api/v1/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.sessionToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            this.sessionToken = null;
+            this.currentUser = null;
+            localStorage.removeItem('session_token');
+            this.showLoginForm();
+        }
     }
 
     // Event Listeners Setup
@@ -119,6 +269,7 @@ class RAGApp {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.sessionToken}`
                 },
                 body: JSON.stringify({ 
                     query: queryText,
@@ -176,17 +327,16 @@ class RAGApp {
 
     async updateQueryWithResponseTime(queryId, responseTime) {
         try {
-            console.log('Updating response time:', { queryId, responseTime });
             const response = await fetch(`${this.API_BASE}/api/v1/query/${queryId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.sessionToken}`
                 },
                 body: JSON.stringify({ response_time: responseTime }),
             });
             
             const data = await response.json();
-            console.log('Response time update result:', data);
         } catch (error) {
             console.warn('Failed to update response time:', error);
         }
@@ -197,7 +347,11 @@ class RAGApp {
         const grid = document.getElementById('documentsGrid');
 
         try {
-            const response = await fetch(`${this.API_BASE}/api/v1/documents`);
+            const response = await fetch(`${this.API_BASE}/api/v1/documents`, {
+                headers: {
+                    'Authorization': `Bearer ${this.sessionToken}`
+                }
+            });
             const data = await response.json();
 
             if (data.success) {
@@ -254,6 +408,9 @@ class RAGApp {
         try {
             const response = await fetch(`${this.API_BASE}/api/v1/documents/${id}`, {
                 method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.sessionToken}`
+                }
             });
 
             const data = await response.json();
@@ -291,6 +448,7 @@ class RAGApp {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.sessionToken}`
                 },
                 body: JSON.stringify({ title, content }),
             });
@@ -430,8 +588,6 @@ class RAGApp {
     async submitFileUpload() {
         const fileInput = document.getElementById('fileInput');
 
-        console.log('submitFileUpload called, fileInput:', fileInput);
-
         if (!fileInput) {
             console.error('fileInput not found in DOM');
             this.showToast('Ошибка: элемент загрузки файла не найден', 'error');
@@ -439,7 +595,6 @@ class RAGApp {
         }
 
         const file = fileInput.files[0];
-        console.log('File selected:', file);
 
         if (!file) {
             this.showToast('Пожалуйста, выберите файл', 'error');
@@ -449,12 +604,6 @@ class RAGApp {
         const fileDropZone = document.getElementById('fileDropZone');
         const fileForm = document.getElementById('fileForm');
         const submitBtn = fileForm ? fileForm.querySelector('button[type="submit"]') : null;
-
-        console.log('Elements found:', {
-            fileDropZone: !!fileDropZone,
-            fileForm: !!fileForm,
-            submitBtn: !!submitBtn
-        });
 
         if (!fileDropZone) {
             console.error('fileDropZone not found in DOM');
@@ -483,15 +632,13 @@ class RAGApp {
             const formData = new FormData();
             formData.append('file', file);
 
-            console.log('Uploading file:', file.name);
-
             const response = await fetch(`${this.API_BASE}/api/v1/documents/upload`, {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.sessionToken}`
+                },
                 body: formData,
             });
-
-            console.log('Response status:', response.status);
-            console.log('Response headers:', Object.fromEntries(response.headers));
 
             // Check if response is JSON
             const contentType = response.headers.get('Content-Type');
@@ -502,7 +649,6 @@ class RAGApp {
             }
 
             const data = await response.json();
-            console.log('Upload response:', data);
 
             if (data.success) {
                 this.showToast('Файл загружен успешно!', 'success');
@@ -529,7 +675,11 @@ class RAGApp {
         const historyList = document.getElementById('historyList');
 
         try {
-            const response = await fetch(`${this.API_BASE}/api/v1/queries`);
+            const response = await fetch(`${this.API_BASE}/api/v1/queries`, {
+                headers: {
+                    'Authorization': `Bearer ${this.sessionToken}`
+                }
+            });
             const data = await response.json();
 
             if (data.success) {
@@ -585,6 +735,36 @@ class RAGApp {
         `).join('');
     }
 
+    // Login Error Management
+    showLoginError(message) {
+        const errorElement = document.getElementById('loginError');
+        if (errorElement) {
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+    }
+
+    hideLoginError() {
+        const errorElement = document.getElementById('loginError');
+        if (errorElement) {
+            errorElement.style.display = 'none';
+            errorElement.textContent = '';
+        }
+    }
+
+    showLoginLoading(show) {
+        const loadingElement = document.getElementById('loginLoading');
+        const submitButton = document.querySelector('.btn-login');
+        
+        if (loadingElement) {
+            loadingElement.style.display = show ? 'block' : 'none';
+        }
+        
+        if (submitButton) {
+            submitButton.disabled = show;
+        }
+    }
+
     // Toast Notifications
     showToast(message, type = 'info') {
         const toastContainer = document.getElementById('toastContainer');
@@ -635,3 +815,4 @@ document.addEventListener('DOMContentLoaded', () => {
 // Global functions for HTML onclick handlers
 window.loadDocuments = () => window.app.loadDocuments();
 window.loadHistory = () => window.app.loadHistory();
+window.logout = () => window.app.logout();

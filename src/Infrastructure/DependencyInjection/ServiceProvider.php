@@ -9,17 +9,25 @@ require_once __DIR__ . '/../../../config/dbal-types.php';
 
 use RagSystem\Domain\Repository\DocumentRepositoryInterface;
 use RagSystem\Domain\Repository\QueryRepositoryInterface;
+use RagSystem\Domain\Repository\UserRepositoryInterface;
+use RagSystem\Domain\Repository\UserSessionRepositoryInterface;
 use RagSystem\Infrastructure\Database\PostgreSQLDocumentRepository;
 use RagSystem\Infrastructure\Database\PostgreSQLQueryRepository;
+use RagSystem\Infrastructure\Database\PostgreSQLUserRepository;
+use RagSystem\Infrastructure\Database\PostgreSQLUserSessionRepository;
 use RagSystem\Infrastructure\Service\LlamaCppAdapter;
 use RagSystem\Application\Service\DocumentService;
 use RagSystem\Application\Service\QueryService;
 use RagSystem\Application\Service\EmbeddingService;
 use RagSystem\Application\Service\LLMService;
 use RagSystem\Application\Service\TextProcessingService;
+use RagSystem\Application\Service\AuthService;
+use RagSystem\Application\Service\AuthorizationService;
 use RagSystem\UI\Http\Controller\DocumentController;
 use RagSystem\UI\Http\Controller\QueryController;
 use RagSystem\UI\Http\Controller\HealthController;
+use RagSystem\UI\Http\Controller\AuthController;
+use RagSystem\Infrastructure\Http\Middleware\AuthMiddleware;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use GuzzleHttp\Client;
@@ -95,6 +103,8 @@ class ServiceProvider
         // Repositories
         $container->bind(DocumentRepositoryInterface::class, PostgreSQLDocumentRepository::class);
         $container->bind(QueryRepositoryInterface::class, PostgreSQLQueryRepository::class);
+        $container->bind(UserRepositoryInterface::class, PostgreSQLUserRepository::class);
+        $container->bind(UserSessionRepositoryInterface::class, PostgreSQLUserSessionRepository::class);
 
         // Services
         $container->bind(TextProcessingService::class, function (Container $container) {
@@ -138,6 +148,27 @@ class ServiceProvider
             );
         });
 
+        // Auth Services
+        $container->bind(AuthService::class, function (Container $container) {
+            return new AuthService(
+                $container->get(UserRepositoryInterface::class),
+                $container->get(UserSessionRepositoryInterface::class),
+                $container->get(LoggerInterface::class)
+            );
+        });
+
+        $container->bind(AuthorizationService::class, function () {
+            return new AuthorizationService();
+        });
+
+        // Auth Middleware
+        $container->bind(AuthMiddleware::class, function (Container $container) {
+            return new AuthMiddleware(
+                $container->get(AuthService::class),
+                $container->get(AuthorizationService::class)
+            );
+        });
+
         // Controllers
         $container->bind(DocumentController::class, function (Container $container) {
             return new DocumentController(
@@ -159,6 +190,13 @@ class ServiceProvider
                 $container->get(Connection::class),
                 $container->get(LlamaCppAdapter::class),
                 $container->get(LoggerInterface::class)
+            );
+        });
+
+        $container->bind(AuthController::class, function (Container $container) {
+            return new AuthController(
+                $container->get(AuthService::class),
+                $container->get(AuthorizationService::class)
             );
         });
     }
