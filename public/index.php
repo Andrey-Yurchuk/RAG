@@ -31,7 +31,8 @@ $requestPath = parse_url($requestUri, PHP_URL_PATH);
 
 // Debug logging for file upload
 $logFile = __DIR__ . '/../storage/logs/request_debug.log';
-file_put_contents($logFile,
+file_put_contents(
+    $logFile,
     '[' . date('Y-m-d H:i:s') . '] ' .
     $_SERVER['REQUEST_METHOD'] . ' ' . $requestUri . ' ' .
     'Content-Type: ' . ($_SERVER['CONTENT_TYPE'] ?? 'none') . ' ' .
@@ -88,6 +89,7 @@ if (str_starts_with($requestPath, '/api/') || $requestPath === '/health') {
         readfile(__DIR__ . '/index.html');
     } else {
         header('HTTP/1.1 404 Not Found');
-        echo '<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1><p>The requested resource was not found.</p></body></html>';
+        echo '<!DOCTYPE html><html><head><title>404 Not Found</title></head>' .
+            '<body><h1>404 Not Found</h1><p>The requested resource was not found.</p></body></html>';
     }
 }

@@ -13,9 +13,7 @@ use Monolog\Level;
 class LlamaCppAdapter
 {
     private string $llamaCppUrl;
-    private string $modelName;
     private array $embeddingCache = [];
-    private bool $modelLoaded = false;
 
     public function __construct(
         private ?Client $httpClient = null,
@@ -25,7 +23,6 @@ class LlamaCppAdapter
         $this->httpClient ??= new Client(['timeout' => 60]);
         $this->logger ??= new Logger('llm-adapter');
         $this->llamaCppUrl = $this->config['llm']['service_url'];
-        $this->modelName = $this->config['llm']['model_name'];
         $logPath = $this->config['storage']['log_path'];
         $this->logger->pushHandler(new StreamHandler($logPath, Level::Info));
     }
@@ -39,7 +36,6 @@ class LlamaCppAdapter
             $response = $this->httpClient->get($this->llamaCppUrl . '/health');
 
             if ($response->getStatusCode() === 200) {
-                $this->modelLoaded = true;
                 return true;
             }
 
@@ -58,7 +54,7 @@ class LlamaCppAdapter
     {
         $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
         $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text);
-        
+
         // Простое кэширование на основе хеша текста
         $textHash = md5($text);
         if (isset($this->embeddingCache[$textHash])) {
@@ -134,17 +130,23 @@ class LlamaCppAdapter
         $questionLower = strtolower($question);
 
         if (preg_match('/как|how|пошагов|step|инструкц|instruction/u', $questionLower)) {
-            $instruction = "Используя предоставленный контекст, дай подробное объяснение процесса или инструкции. Если в контексте есть пошаговые указания, включи их полностью.";
+            $instruction = "Используя предоставленный контекст, дай подробное объяснение процесса или инструкции. " .
+                "Если в контексте есть пошаговые указания, включи их полностью.";
         } elseif (preg_match('/что такое|what is|определен|definition|означа|mean/u', $questionLower)) {
-            $instruction = "На основе контекста дай четкое определение или объяснение запрашиваемого понятия. Укажи его назначение и основные характеристики.";
+            $instruction = "На основе контекста дай четкое определение или объяснение запрашиваемого понятия. " .
+                "Укажи его назначение и основные характеристики.";
         } elseif (preg_match('/чем|difference|различи|сравн|compare|лучше|worse|advantage/u', $questionLower)) {
-            $instruction = "Используя контекст, проведи сравнение или анализ различий. Укажи преимущества, недостатки и особенности.";
+            $instruction = "Используя контекст, проведи сравнение или анализ различий. " .
+                "Укажи преимущества, недостатки и особенности.";
         } elseif (preg_match('/где|where|найти|find|расположен|located/u', $questionLower)) {
-            $instruction = "На основе контекста укажи, где можно найти или как получить доступ к запрашиваемому элементу.";
+            $instruction = "На основе контекста укажи, где можно найти или как получить доступ к " .
+                "запрашиваемому элементу.";
         } elseif (preg_match('/когда|when|время|time|срок|deadline/u', $questionLower)) {
-            $instruction = "Используя контекст, объясни временные аспекты, сроки или условия, связанные с запросом.";
+            $instruction = "Используя контекст, объясни временные аспекты, сроки или условия, " .
+                "связанные с запросом.";
         } else {
-            $instruction = "Внимательно проанализируй предоставленный контекст и дай полный, информативный ответ на вопрос.";
+            $instruction = "Внимательно проанализируй предоставленный контекст и дай полный, " .
+                "информативный ответ на вопрос.";
         }
 
         return "Ты - AI-ассистент для работы с документацией. Важно: отвечай на русском языке.
@@ -161,7 +163,8 @@ class LlamaCppAdapter
         - Используй только информацию из предоставленного контекста
         - Структурируй ответ четко и логично
         - Если в контексте есть пошаговые инструкции, включи их полностью
-        - Если контекст не содержит нужной информации, скажи: \"В предоставленном контексте нет информации для ответа на этот вопрос\"
+        - Если контекст не содержит нужной информации, скажи: 
+          \"В предоставленном контексте нет информации для ответа на этот вопрос\"
 
         Твой ответ на русском языке:";
     }
@@ -186,7 +189,7 @@ class LlamaCppAdapter
 
         $prompt = mb_convert_encoding($prompt, 'UTF-8', 'UTF-8');
         $prompt = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $prompt);
-        
+
         $formattedPrompt = "<|user|>\n{$prompt}\n<|assistant|>\n";
 
         try {
@@ -237,7 +240,9 @@ class LlamaCppAdapter
         if (str_contains($prompt, 'Контекст:')) {
             $contextStart = strpos($prompt, 'Контекст:');
             $contextEnd = strpos($prompt, "\n\nВопрос:");
-            if ($contextEnd === false) $contextEnd = strlen($prompt);
+            if ($contextEnd === false) {
+                $contextEnd = strlen($prompt);
+            }
 
             $context = trim(substr($prompt, $contextStart + 9, $contextEnd - $contextStart - 9));
 
@@ -254,7 +259,9 @@ class LlamaCppAdapter
         } elseif (str_contains($prompt, 'Context:')) {
             $contextStart = strpos($prompt, 'Context:');
             $contextEnd = strpos($prompt, "\n\nQuestion:");
-            if ($contextEnd === false) $contextEnd = strlen($prompt);
+            if ($contextEnd === false) {
+                $contextEnd = strlen($prompt);
+            }
 
             $context = trim(substr($prompt, $contextStart + 8, $contextEnd - $contextStart - 8));
 
@@ -266,7 +273,8 @@ class LlamaCppAdapter
                     $question = trim(substr($question, 0, -20));
                 }
 
-                $optimizedPrompt = "You are an AI assistant for working with documentation. Important: Answer in English!
+                $optimizedPrompt = "You are an AI assistant for working with documentation. " .
+                    "Important: Answer in English!
 
                 Context from documentation:
                 {$context}
@@ -278,7 +286,8 @@ class LlamaCppAdapter
                 - Use only information from the provided context
                 - Structure the answer clearly and logically
                 - If the context contains step-by-step instructions, include them fully
-                - If the context doesn't contain the needed information, say: \"The provided context does not contain information to answer this question\"
+                - If the context doesn't contain the needed information, say: 
+                  \"The provided context does not contain information to answer this question\"
 
                 Your answer in English:";
 

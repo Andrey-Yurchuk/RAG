@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace RagSystem\Infrastructure\DependencyInjection;
 
-// Load custom DBAL types
-require_once __DIR__ . '/../../../config/dbal-types.php';
-
 use RagSystem\Domain\Repository\DocumentRepositoryInterface;
 use RagSystem\Domain\Repository\QueryRepositoryInterface;
 use RagSystem\Domain\Repository\UserRepositoryInterface;
@@ -42,6 +39,9 @@ class ServiceProvider
      */
     public static function register(Container $container): void
     {
+        // Load custom DBAL types
+        require_once __DIR__ . '/../../../config/dbal-types.php';
+
         // Configuration
         $container->bind('config', function () {
             return [
@@ -115,16 +115,14 @@ class ServiceProvider
         $container->bind(EmbeddingService::class, function (Container $container) {
             return new EmbeddingService(
                 $container->get(LlamaCppAdapter::class),
-                $container->get(LoggerInterface::class),
-                $container->get('config')['services']
+                $container->get(LoggerInterface::class)
             );
         });
 
         $container->bind(LLMService::class, function (Container $container) {
             return new LLMService(
                 $container->get(LlamaCppAdapter::class),
-                $container->get(LoggerInterface::class),
-                $container->get('config')['services']
+                $container->get(LoggerInterface::class)
             );
         });
 

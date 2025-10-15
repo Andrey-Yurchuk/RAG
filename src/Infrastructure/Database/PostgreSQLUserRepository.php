@@ -11,7 +11,9 @@ use ReflectionClass;
 
 class PostgreSQLUserRepository implements UserRepositoryInterface
 {
-    public function __construct(private Connection $connection) {}
+    public function __construct(private Connection $connection)
+    {
+    }
 
     /**
      * @inheritdoc
@@ -23,12 +25,17 @@ class PostgreSQLUserRepository implements UserRepositoryInterface
         if ($data['id'] === 0) {
             unset($data['id']);
             $sql = '
-                INSERT INTO users (username, email, password_hash, role, is_active, created_at, updated_at, last_login_at)
-                VALUES (:username, :email, :password_hash, :role, :is_active, :created_at, :updated_at, :last_login_at)
+                INSERT INTO users (
+                    username, email, password_hash, role, is_active, 
+                    created_at, updated_at, last_login_at
+                ) VALUES (
+                    :username, :email, :password_hash, :role, :is_active, 
+                    :created_at, :updated_at, :last_login_at
+                )
             ';
-            
+
             $this->connection->executeStatement($sql, $data);
-            
+
             // Получаем сгенерированный ID
             $lastInsertId = $this->connection->lastInsertId();
             if ($lastInsertId) {
@@ -40,9 +47,13 @@ class PostgreSQLUserRepository implements UserRepositoryInterface
             }
         } else {
             $sql = '
-                INSERT INTO users (id, username, email, password_hash, role, is_active, created_at, updated_at, last_login_at)
-                VALUES (:id, :username, :email, :password_hash, :role, :is_active, :created_at, :updated_at, :last_login_at)
-                ON CONFLICT (id) DO UPDATE SET
+                INSERT INTO users (
+                    id, username, email, password_hash, role, is_active, 
+                    created_at, updated_at, last_login_at
+                ) VALUES (
+                    :id, :username, :email, :password_hash, :role, :is_active, 
+                    :created_at, :updated_at, :last_login_at
+                ) ON CONFLICT (id) DO UPDATE SET
                     username = EXCLUDED.username,
                     email = EXCLUDED.email,
                     password_hash = EXCLUDED.password_hash,
@@ -51,7 +62,7 @@ class PostgreSQLUserRepository implements UserRepositoryInterface
                     updated_at = EXCLUDED.updated_at,
                     last_login_at = EXCLUDED.last_login_at
             ';
-            
+
             $this->connection->executeStatement($sql, $data);
         }
     }

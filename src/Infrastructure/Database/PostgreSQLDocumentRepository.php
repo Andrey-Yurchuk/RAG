@@ -14,9 +14,10 @@ use Psr\Log\LoggerInterface;
 class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
 {
     public function __construct(
-        private Connection      $connection,
+        private Connection $connection,
         private LoggerInterface $logger
-    ){}
+    ) {
+    }
 
     /**
      * Сохраняет документ в базу данных (insert или update при конфликте)

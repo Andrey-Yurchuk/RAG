@@ -32,7 +32,7 @@ class QueryController
             $dto = QueryRequestDTO::fromArray($request->getBody());
             $validator = new QueryRequestValidator();
             $validationResult = $validator->validate($dto);
-            
+
             if (!$validationResult->isValid()) {
                 $responseDto = ApiResponseFactory::error('Validation failed', $validationResult->getErrors(), 400);
                 return Response::json($responseDto->toArray(), 400);
@@ -49,7 +49,6 @@ class QueryController
             ]);
 
             return Response::json($responseDto->toArray());
-            
         } catch (InvalidArgumentException $e) {
             $responseDto = ApiResponseFactory::error('Invalid request data', ['request' => $e->getMessage()], 400);
             return Response::json($responseDto->toArray(), 400);
@@ -58,8 +57,12 @@ class QueryController
                 'query' => $request->getBody()['query'] ?? 'unknown',
                 'error' => $e->getMessage()
             ]);
-            
-            $responseDto = ApiResponseFactory::error('Failed to process query', ['server' => 'Internal server error'], 500);
+
+            $responseDto = ApiResponseFactory::error(
+                'Failed to process query',
+                ['server' => 'Internal server error'],
+                500
+            );
             return Response::json($responseDto->toArray(), 500);
         }
     }

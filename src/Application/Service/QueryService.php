@@ -23,7 +23,8 @@ class QueryService
         private LLMService $llmService,
         private LoggerInterface $logger,
         private array $config
-    ) {}
+    ) {
+    }
 
     /**
      * Обрабатывает запрос и генерирует RAG ответ
@@ -33,7 +34,7 @@ class QueryService
         $this->logger->info('Processing query', ['query' => $queryText]);
 
         $query = new Query($queryText);
-        
+
         if ($responseTime !== null) {
             $query->setResponseTime($responseTime);
         }
@@ -156,7 +157,7 @@ class QueryService
     {
         try {
             $query = $this->queryRepository->findById(Uuid::fromString($queryId));
-            
+
             if (!$query) {
                 return null;
             }

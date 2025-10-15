@@ -13,7 +13,9 @@ use Psr\Log\LoggerInterface;
 
 class PostgreSQLQueryRepository implements QueryRepositoryInterface
 {
-    public function __construct(private Connection $connection, private LoggerInterface $logger){}
+    public function __construct(private Connection $connection, private LoggerInterface $logger)
+    {
+    }
 
     /**
      * Сохраняет или обновляет запрос в базе данных PostgreSQL

@@ -20,11 +20,10 @@ class DocumentController
     private LoggerInterface $logger;
 
     public function __construct(
-        DocumentService       $documentService,
+        DocumentService $documentService,
         TextProcessingService $textProcessingService,
-        LoggerInterface       $logger
-    )
-    {
+        LoggerInterface $logger
+    ) {
         $this->documentService = $documentService;
         $this->textProcessingService = $textProcessingService;
         $this->logger = $logger;
@@ -216,7 +215,9 @@ class DocumentController
                     'error_code' => $uploadedFile['error'],
                     'error_message' => $this->getUploadErrorMessage($uploadedFile['error'])
                 ]);
-                return Response::badRequest('File upload failed: ' . $this->getUploadErrorMessage($uploadedFile['error']));
+                return Response::badRequest(
+                    'File upload failed: ' . $this->getUploadErrorMessage($uploadedFile['error'])
+                );
             }
 
             $filePath = $uploadedFile['tmp_name'];
@@ -255,7 +256,10 @@ class DocumentController
                         'original_name' => $uploadedFile['name'],
                         'pathinfo_debug' => pathinfo($fileName)
                     ]);
-                    return Response::badRequest('File must have a valid extension (txt, md, html, pdf, docx, doc) or be a recognizable text file');
+                    return Response::badRequest(
+                        'File must have a valid extension (txt, md, html, pdf, docx, doc) ' .
+                        'or be a recognizable text file'
+                    );
                 }
             }
 
@@ -267,7 +271,9 @@ class DocumentController
                     'file_name' => $fileName,
                     'supported_types' => $supportedTypes
                 ]);
-                return Response::badRequest('Unsupported file type: ' . $fileType . '. Supported types: ' . implode(', ', $supportedTypes));
+                return Response::badRequest(
+                    'Unsupported file type: ' . $fileType . '. Supported types: ' . implode(', ', $supportedTypes)
+                );
             }
 
             $this->logger->info('Processing file', [

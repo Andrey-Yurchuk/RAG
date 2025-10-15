@@ -13,9 +13,9 @@ class EmbeddingService
 {
     public function __construct(
         private LlamaCppAdapter $llamaCppAdapter,
-        private LoggerInterface $logger,
-        private array $config
-    ) {}
+        private LoggerInterface $logger
+    ) {
+    }
 
     /**
      * Генерирует векторное представление для текста

@@ -11,7 +11,9 @@ use ReflectionClass;
 
 class PostgreSQLUserSessionRepository implements UserSessionRepositoryInterface
 {
-    public function __construct(private Connection $connection) {}
+    public function __construct(private Connection $connection)
+    {
+    }
 
     /**
      * @inheritdoc
@@ -26,9 +28,9 @@ class PostgreSQLUserSessionRepository implements UserSessionRepositoryInterface
                 INSERT INTO user_sessions (user_id, session_token, ip_address, user_agent, expires_at, created_at)
                 VALUES (:user_id, :session_token, :ip_address, :user_agent, :expires_at, :created_at)
             ';
-            
+
             $this->connection->executeStatement($sql, $data);
-            
+
             // Получаем сгенерированный ID
             $lastInsertId = $this->connection->lastInsertId();
             if ($lastInsertId) {
@@ -48,7 +50,7 @@ class PostgreSQLUserSessionRepository implements UserSessionRepositoryInterface
                     user_agent = EXCLUDED.user_agent,
                     expires_at = EXCLUDED.expires_at
             ';
-            
+
             $this->connection->executeStatement($sql, $data);
         }
     }

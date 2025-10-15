@@ -13,7 +13,8 @@ class Container implements ContainerInterface
     public function __construct(
         private array $bindings = [],
         private array $instances = []
-    ) {}
+    ) {
+    }
 
     /**
      * Регистрирует привязку абстракции к конкретной реализации
@@ -86,7 +87,7 @@ class Container implements ContainerInterface
         $constructor = $reflection->getConstructor();
 
         if (!$constructor) {
-            return new $class;
+            return new $class();
         }
 
         $parameters = $constructor->getParameters();
@@ -95,14 +96,20 @@ class Container implements ContainerInterface
         foreach ($parameters as $parameter) {
             $type = $parameter->getType();
 
-            if (!$type || $type->isBuiltin()) {
+            if (!$type || ($type instanceof \ReflectionNamedType && $type->isBuiltin())) {
                 if ($parameter->isDefaultValueAvailable()) {
                     $dependencies[] = $parameter->getDefaultValue();
                 } else {
                     throw new InvalidArgumentException("Cannot resolve parameter {$parameter->getName()}");
                 }
             } else {
-                $dependencies[] = $this->get($type->getName());
+                if ($type instanceof \ReflectionNamedType) {
+                    $dependencies[] = $this->get($type->getName());
+                } else {
+                    throw new InvalidArgumentException(
+                        "Cannot resolve union or intersection type for parameter {$parameter->getName()}"
+                    );
+                }
             }
         }
 

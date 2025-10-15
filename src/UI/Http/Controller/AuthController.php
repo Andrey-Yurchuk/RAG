@@ -21,7 +21,8 @@ class AuthController
     public function __construct(
         private AuthService $authService,
         private AuthorizationService $authorizationService
-    ) {}
+    ) {
+    }
 
     /**
      * Обрабатывает запрос на вход в систему
@@ -32,29 +33,37 @@ class AuthController
             $dto = LoginRequestDTO::fromArray($request->getBody());
             $validator = new LoginRequestValidator();
             $validationResult = $validator->validate($dto);
-            
+
             if (!$validationResult->isValid()) {
                 $responseDto = ApiResponseFactory::error('Validation failed', $validationResult->getErrors(), 400);
                 return Response::json($responseDto->toArray(), 400);
             }
-            
+
             $ipAddress = $this->getClientIp($request);
             $userAgent = $request->getHeader('User-Agent');
 
             $session = $this->authService->authenticate($dto->username, $dto->password, $ipAddress, $userAgent);
 
             if (!$session) {
-                $responseDto = ApiResponseFactory::error('Authentication failed', ['credentials' => 'Invalid username or password'], 401);
+                $responseDto = ApiResponseFactory::error(
+                    'Authentication failed',
+                    ['credentials' => 'Invalid username or password'],
+                    401
+                );
                 return Response::json($responseDto->toArray(), 401);
             }
 
             $user = $this->authService->validateSession($session->getSessionToken());
-            
+
             if (!$user) {
-                $responseDto = ApiResponseFactory::error('Authentication failed', ['session' => 'Unable to validate user session'], 401);
+                $responseDto = ApiResponseFactory::error(
+                    'Authentication failed',
+                    ['session' => 'Unable to validate user session'],
+                    401
+                );
                 return Response::json($responseDto->toArray(), 401);
             }
-            
+
             $permissions = $this->authorizationService->getUserPermissions($user);
             $actions = $this->authorizationService->getAvailableActions($user);
 
@@ -74,7 +83,6 @@ class AuthController
             ]);
 
             return Response::json($responseDto->toArray());
-            
         } catch (InvalidArgumentException $e) {
             $responseDto = ApiResponseFactory::error('Invalid request data', ['request' => $e->getMessage()], 400);
             return Response::json($responseDto->toArray(), 400);
@@ -88,22 +96,29 @@ class AuthController
     {
         try {
             $sessionToken = $this->extractSessionToken($request);
-            
+
             if (!$sessionToken) {
-                $responseDto = ApiResponseFactory::error('Session token required', ['session_token' => 'Session token is required for logout'], 400);
+                $responseDto = ApiResponseFactory::error(
+                    'Session token required',
+                    ['session_token' => 'Session token is required for logout'],
+                    400
+                );
                 return Response::json($responseDto->toArray(), 400);
             }
 
             $success = $this->authService->logout($sessionToken);
 
             if (!$success) {
-                $responseDto = ApiResponseFactory::error('Logout failed', ['session_token' => 'Invalid session token'], 400);
+                $responseDto = ApiResponseFactory::error(
+                    'Logout failed',
+                    ['session_token' => 'Invalid session token'],
+                    400
+                );
                 return Response::json($responseDto->toArray(), 400);
             }
 
             $responseDto = ApiResponseFactory::success('Logout successful');
             return Response::json($responseDto->toArray());
-            
         } catch (InvalidArgumentException $e) {
             $responseDto = ApiResponseFactory::error('Invalid request data', ['request' => $e->getMessage()], 400);
             return Response::json($responseDto->toArray(), 400);
@@ -116,7 +131,7 @@ class AuthController
     public function me(Request $request): Response
     {
         $sessionToken = $this->extractSessionToken($request);
-        
+
         if (!$sessionToken) {
             return Response::json([
                 'error' => 'Unauthorized',
@@ -227,7 +242,7 @@ class AuthController
             if ($ip) {
                 $ip = explode(',', $ip)[0];
                 $ip = trim($ip);
-                
+
                 if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
                     return $ip;
                 }

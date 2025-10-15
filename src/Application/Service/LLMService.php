@@ -13,9 +13,9 @@ class LLMService
 {
     public function __construct(
         private LlamaCppAdapter $llamaCppAdapter,
-        private LoggerInterface $logger,
-        private array $config
-    ) {}
+        private LoggerInterface $logger
+    ) {
+    }
 
     /**
      * Генерирует ответ на основе промпта и контекста
@@ -23,10 +23,10 @@ class LLMService
     public function generateResponse(string $prompt, array $context = []): string
     {
         $fullPrompt = $this->buildPrompt($prompt, $context);
-        
+
         try {
             $response = $this->llamaCppAdapter->generateCompletion($fullPrompt);
-            
+
             $this->logger->debug('Generated LLM response', [
                 'prompt_length' => strlen($fullPrompt),
                 'response_length' => strlen($response)
@@ -38,7 +38,7 @@ class LLMService
                 'error' => $e->getMessage(),
                 'prompt_length' => strlen($fullPrompt)
             ]);
-            
+
             throw new RuntimeException('Failed to generate response: ' . $e->getMessage());
         }
     }
@@ -49,18 +49,18 @@ class LLMService
     public function generateRAGResponse(string $question, array $relevantChunks): string
     {
         $contextText = $this->formatContextFromChunks($relevantChunks);
-        
+
         $prompt = $this->buildRAGPrompt($question, $contextText);
-        
+
         $this->logger->debug('Generated RAG prompt', [
             'prompt_preview' => substr($prompt, 0, 300) . '...',
             'prompt_length' => strlen($prompt)
         ]);
-        
+
         try {
             $processedPrompt = $this->llamaCppAdapter->processRAGPrompt($prompt);
             $response = $this->llamaCppAdapter->generateCompletion($processedPrompt);
-            
+
             $this->logger->debug('Generated RAG response', [
                 'prompt_length' => strlen($processedPrompt),
                 'response_length' => strlen($response)
@@ -72,7 +72,7 @@ class LLMService
                 'error' => $e->getMessage(),
                 'prompt_length' => strlen($prompt)
             ]);
-            
+
             throw new RuntimeException('Failed to generate response: ' . $e->getMessage());
         }
     }
@@ -82,16 +82,17 @@ class LLMService
      */
     private function buildPrompt(string $userPrompt, array $context = []): string
     {
-        $systemPrompt = "You are a helpful AI assistant. Provide accurate and helpful responses based on the given context.";
-        
+        $systemPrompt = "You are a helpful AI assistant. " .
+            "Provide accurate and helpful responses based on the given context.";
+
         $prompt = "{$systemPrompt}\n\n";
-        
+
         if (!empty($context)) {
             $prompt .= "Context:\n" . implode("\n", $context) . "\n\n";
         }
-        
+
         $prompt .= "User: {$userPrompt}\n\nAssistant:";
-        
+
         return $prompt;
     }
 
@@ -101,21 +102,23 @@ class LLMService
     private function buildRAGPrompt(string $question, string $context): string
     {
         $language = $this->detectLanguage($question);
-        
+
         if ($language === 'en') {
-            $systemPrompt = "You are an AI assistant for working with documentation. Answer only in English based on the provided context.";
+            $systemPrompt = "You are an AI assistant for working with documentation. " .
+                "Answer only in English based on the provided context.";
             $prompt = "{$systemPrompt}\n\n";
             $prompt .= "Context:\n{$context}\n\n";
             $prompt .= "Question: {$question}\n\n";
             $prompt .= "Answer in English:";
         } else {
-            $systemPrompt = "Ты - русскоязычный AI-ассистент для работы с документацией. Отвечай только на русском языке на основе предоставленного контекста.";
+            $systemPrompt = "Ты - русскоязычный AI-ассистент для работы с документацией. " .
+                "Отвечай только на русском языке на основе предоставленного контекста.";
             $prompt = "{$systemPrompt}\n\n";
             $prompt .= "Контекст:\n{$context}\n\n";
             $prompt .= "Вопрос: {$question}\n\n";
             $prompt .= "Ответ на русском языке:";
         }
-        
+
         return $prompt;
     }
 
@@ -126,18 +129,26 @@ class LLMService
     {
         $text = strtolower($text);
 
-        $englishWords = ['the', 'is', 'are', 'was', 'were', 'and', 'or', 'but', 'if', 'then', 'what', 'who', 'how', 'when', 'where', 'why', 'which', 'that', 'this', 'these', 'those', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'];
+        $englishWords = [
+            'the', 'is', 'are', 'was', 'were', 'and', 'or', 'but', 'if', 'then',
+            'what', 'who', 'how', 'when', 'where', 'why', 'which', 'that', 'this',
+            'these', 'those', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'
+        ];
         $englishCount = 0;
-        
+
         foreach ($englishWords as $word) {
             if (str_contains($text, $word)) {
                 $englishCount++;
             }
         }
 
-        $russianWords = ['что', 'как', 'где', 'когда', 'зачем', 'почему', 'кто', 'какой', 'какая', 'какие', 'это', 'есть', 'был', 'была', 'были', 'будет', 'будут', 'может', 'должен', 'должна', 'должны', 'для', 'про', 'расскажи', 'объясни', 'покажи'];
+        $russianWords = [
+            'что', 'как', 'где', 'когда', 'зачем', 'почему', 'кто', 'какой', 'какая',
+            'какие', 'это', 'есть', 'был', 'была', 'были', 'будет', 'будут', 'может',
+            'должен', 'должна', 'должны', 'для', 'про', 'расскажи', 'объясни', 'покажи'
+        ];
         $russianCount = 0;
-        
+
         foreach ($russianWords as $word) {
             if (str_contains($text, $word)) {
                 $russianCount++;
@@ -162,7 +173,7 @@ class LLMService
     private function formatContextFromChunks(array $chunks): string
     {
         $contextParts = [];
-        
+
         foreach ($chunks as $chunk) {
             if (is_array($chunk) && isset($chunk['chunk_text'])) {
                 $contextParts[] = $chunk['chunk_text'];
@@ -170,7 +181,7 @@ class LLMService
                 $contextParts[] = $chunk;
             }
         }
-        
+
         return implode("\n\n", $contextParts);
     }
 
@@ -181,4 +192,4 @@ class LLMService
     {
         return $this->llamaCppAdapter->ensureModelLoaded();
     }
-} 
+}

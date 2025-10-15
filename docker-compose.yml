@@ -14,6 +14,10 @@ services:
       - ./public:/app/public
       - ./bin:/app/bin
       - ./database:/app/database
+      - ./composer.json:/app/composer.json
+      - ./composer.lock:/app/composer.lock
+      - ./phpstan.neon:/app/phpstan.neon
+      - ./phpcs.xml:/app/phpcs.xml
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
     environment:
       - SERVER_NAME=${SERVER_NAME:-localhost}

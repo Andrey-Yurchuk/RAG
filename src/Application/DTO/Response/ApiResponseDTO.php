@@ -14,7 +14,8 @@ final class ApiResponseDTO implements DTOInterface
         public readonly ?array $data = null,
         public readonly ?array $errors = null,
         public readonly int $code = 200
-    ) {}
+    ) {
+    }
 
     /**
      * @inheritdoc
@@ -40,15 +41,15 @@ final class ApiResponseDTO implements DTOInterface
             'message' => $this->message,
             'code' => $this->code
         ];
-        
+
         if ($this->data !== null) {
             $result['data'] = $this->data;
         }
-        
+
         if ($this->errors !== null) {
             $result['errors'] = $this->errors;
         }
-        
+
         return $result;
     }
 }

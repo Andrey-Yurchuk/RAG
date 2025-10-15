@@ -12,7 +12,9 @@ class Router
 {
     private array $routes = [];
 
-    public function __construct(private Container $container) {}
+    public function __construct(private Container $container)
+    {
+    }
 
     /**
      * Добавляет GET маршрут
@@ -75,6 +77,7 @@ class Router
         $groupRoutes = $this->routes;
         $this->routes = $originalRoutes;
 
+        /** @phpstan-ignore-next-line */
         foreach ($groupRoutes as $method => $routes) {
             foreach ($routes as $path => $handler) {
                 $this->addRoute($method, $prefix . $path, $handler);

@@ -20,7 +20,8 @@ class DocumentService
         private EmbeddingService $embeddingService,
         private TextProcessingService $textProcessingService,
         private LoggerInterface $logger
-    ) {}
+    ) {
+    }
 
     /**
      * Создает новый документ и обрабатывает его чанки
@@ -43,7 +44,7 @@ class DocumentService
     /**
      * Получает документ по ID
      */
-    public function getDocument(UuidInterface $id): Document
+    public function getDocument(UuidInterface $id): ?Document
     {
         return $this->documentRepository->findById($id);
     }

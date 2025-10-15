@@ -19,13 +19,18 @@ class AuthService
         private UserRepositoryInterface $userRepository,
         private UserSessionRepositoryInterface $sessionRepository,
         private LoggerInterface $logger
-    ) {}
+    ) {
+    }
 
     /**
      * Аутентифицирует пользователя по username и паролю
      */
-    public function authenticate(string $username, string $password, ?string $ipAddress = null, ?string $userAgent = null): ?UserSession
-    {
+    public function authenticate(
+        string $username,
+        string $password,
+        ?string $ipAddress = null,
+        ?string $userAgent = null
+    ): ?UserSession {
         $user = $this->userRepository->findByUsername($username);
 
         if (!$user || !$user->isActive()) {

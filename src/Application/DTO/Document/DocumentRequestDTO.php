@@ -12,7 +12,8 @@ final class DocumentRequestDTO implements DTOInterface
         public readonly string $title,
         public readonly ?string $content = null,
         public readonly ?string $metadata = null
-    ) {}
+    ) {
+    }
 
     /**
      * @inheritdoc

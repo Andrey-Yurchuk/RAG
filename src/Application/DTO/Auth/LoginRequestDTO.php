@@ -11,7 +11,8 @@ final class LoginRequestDTO implements DTOInterface
     public function __construct(
         public readonly string $username,
         public readonly string $password
-    ) {}
+    ) {
+    }
 
     /**
      * @inheritdoc

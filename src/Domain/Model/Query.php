@@ -29,8 +29,8 @@ final class Query
             $data['queryText'] ?? $data['query_text'] ?? '',
             $data['queryEmbedding'] ?? $data['query_embedding'] ?? null,
             $data['response'] ?? null,
-            isset($data['responseTime']) || isset($data['response_time']) 
-                ? (float)($data['responseTime'] ?? $data['response_time']) 
+            isset($data['responseTime']) || isset($data['response_time'])
+                ? (float)($data['responseTime'] ?? $data['response_time'])
                 : null
         );
 

@@ -19,7 +19,8 @@ class AuthMiddleware implements MiddlewareInterface
     public function __construct(
         private AuthService $authService,
         private AuthorizationService $authorizationService
-    ) {}
+    ) {
+    }
 
     /**
      * Обрабатывает HTTP запрос и проверяет авторизацию
@@ -111,7 +112,7 @@ class AuthMiddleware implements MiddlewareInterface
             'message' => $message,
             'code' => 401
         ], 401);
-        
+
         return $this->convertToPsr7Response($response);
     }
 
@@ -125,7 +126,7 @@ class AuthMiddleware implements MiddlewareInterface
             'message' => $message,
             'code' => 403
         ], 403);
-        
+
         return $this->convertToPsr7Response($response);
     }
 

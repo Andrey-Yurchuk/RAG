@@ -13,7 +13,8 @@ final class UploadRequestDTO implements DTOInterface
         public readonly string $mimeType,
         public readonly int $size,
         public readonly ?string $title = null
-    ) {}
+    ) {
+    }
 
     /**
      * @inheritdoc

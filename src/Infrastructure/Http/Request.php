@@ -26,8 +26,8 @@ class Request
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
         $headers = getallheaders() ?: [];
-        $query = $_GET ?? [];
-        $files = $_FILES ?? [];
+        $query = $_GET;
+        $files = $_FILES;
 
         $contentType = $headers['Content-Type'] ?? $headers['content-type'] ?? '';
 
@@ -39,7 +39,7 @@ class Request
                 $body = json_decode($input, true, 512, JSON_THROW_ON_ERROR) ?? [];
             }
         } else {
-            $body = $_POST ?? [];
+            $body = $_POST;
         }
 
         return new self($method, $uri, $headers, $query, $body, $files);

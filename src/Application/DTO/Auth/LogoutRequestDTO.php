@@ -10,7 +10,8 @@ final class LogoutRequestDTO implements DTOInterface
 {
     public function __construct(
         public readonly string $sessionToken
-    ) {}
+    ) {
+    }
 
     /**
      * @inheritdoc

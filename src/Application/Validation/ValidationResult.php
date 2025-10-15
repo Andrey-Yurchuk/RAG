@@ -8,7 +8,8 @@ final class ValidationResult
 {
     public function __construct(
         private array $errors = []
-    ) {}
+    ) {
+    }
 
     /**
      * Проверяет, прошла ли валидация успешно
