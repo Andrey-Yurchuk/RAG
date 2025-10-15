@@ -6,8 +6,15 @@ namespace RagSystem\UI\Http\Controller;
 
 use RagSystem\Application\Service\AuthService;
 use RagSystem\Application\Service\AuthorizationService;
+use RagSystem\Application\DTO\Auth\LoginRequestDTO;
+use RagSystem\Application\DTO\Auth\LogoutRequestDTO;
+use RagSystem\Application\DTO\Response\ApiResponseDTO;
+use RagSystem\Application\Factory\ApiResponseFactory;
+use RagSystem\Application\Validation\Auth\LoginRequestValidator;
+use RagSystem\Application\Validation\Auth\LogoutRequestValidator;
 use RagSystem\Infrastructure\Http\Request;
 use RagSystem\Infrastructure\Http\Response;
+use InvalidArgumentException;
 
 class AuthController
 {
@@ -21,57 +28,37 @@ class AuthController
      */
     public function login(Request $request): Response
     {
-        $data = $request->getBody();
+        try {
+            $dto = LoginRequestDTO::fromArray($request->getBody());
+            $validator = new LoginRequestValidator();
+            $validationResult = $validator->validate($dto);
+            
+            if (!$validationResult->isValid()) {
+                $responseDto = ApiResponseFactory::error('Validation failed', $validationResult->getErrors(), 400);
+                return Response::json($responseDto->toArray(), 400);
+            }
+            
+            $ipAddress = $this->getClientIp($request);
+            $userAgent = $request->getHeader('User-Agent');
 
-        if (!$data || !isset($data['username']) || !isset($data['password'])) {
-            return Response::json([
-                'error' => 'Invalid request',
-                'message' => 'Username and password are required',
-                'code' => 400
-            ], 400);
-        }
+            $session = $this->authService->authenticate($dto->username, $dto->password, $ipAddress, $userAgent);
 
-        $username = trim($data['username']);
-        $password = $data['password'];
+            if (!$session) {
+                $responseDto = ApiResponseFactory::error('Authentication failed', ['credentials' => 'Invalid username or password'], 401);
+                return Response::json($responseDto->toArray(), 401);
+            }
 
-        if (empty($username) || empty($password)) {
-            return Response::json([
-                'error' => 'Invalid credentials',
-                'message' => 'Username and password cannot be empty',
-                'code' => 400
-            ], 400);
-        }
+            $user = $this->authService->validateSession($session->getSessionToken());
+            
+            if (!$user) {
+                $responseDto = ApiResponseFactory::error('Authentication failed', ['session' => 'Unable to validate user session'], 401);
+                return Response::json($responseDto->toArray(), 401);
+            }
+            
+            $permissions = $this->authorizationService->getUserPermissions($user);
+            $actions = $this->authorizationService->getAvailableActions($user);
 
-        $ipAddress = $this->getClientIp($request);
-        $userAgent = $request->getHeader('User-Agent');
-
-        $session = $this->authService->authenticate($username, $password, $ipAddress, $userAgent);
-
-        if (!$session) {
-            return Response::json([
-                'error' => 'Authentication failed',
-                'message' => 'Invalid username or password',
-                'code' => 401
-            ], 401);
-        }
-
-        $user = $this->authService->validateSession($session->getSessionToken());
-        
-        if (!$user) {
-            return Response::json([
-                'error' => 'Authentication failed',
-                'message' => 'Unable to validate user session',
-                'code' => 401
-            ], 401);
-        }
-        
-        $permissions = $this->authorizationService->getUserPermissions($user);
-        $actions = $this->authorizationService->getAvailableActions($user);
-
-        return Response::json([
-            'success' => true,
-            'message' => 'Login successful',
-            'data' => [
+            $responseDto = ApiResponseFactory::success('Login successful', [
                 'session_token' => $session->getSessionToken(),
                 'user' => [
                     'id' => $user->getId(),
@@ -84,8 +71,14 @@ class AuthController
                 'permissions' => $permissions,
                 'available_actions' => $actions,
                 'session_expires_at' => $session->getExpiresAt()->format('Y-m-d H:i:s'),
-            ]
-        ]);
+            ]);
+
+            return Response::json($responseDto->toArray());
+            
+        } catch (InvalidArgumentException $e) {
+            $responseDto = ApiResponseFactory::error('Invalid request data', ['request' => $e->getMessage()], 400);
+            return Response::json($responseDto->toArray(), 400);
+        }
     }
 
     /**
@@ -93,30 +86,28 @@ class AuthController
      */
     public function logout(Request $request): Response
     {
-        $sessionToken = $this->extractSessionToken($request);
+        try {
+            $sessionToken = $this->extractSessionToken($request);
+            
+            if (!$sessionToken) {
+                $responseDto = ApiResponseFactory::error('Session token required', ['session_token' => 'Session token is required for logout'], 400);
+                return Response::json($responseDto->toArray(), 400);
+            }
 
-        if (!$sessionToken) {
-            return Response::json([
-                'error' => 'Session token required',
-                'message' => 'Session token is required for logout',
-                'code' => 400
-            ], 400);
+            $success = $this->authService->logout($sessionToken);
+
+            if (!$success) {
+                $responseDto = ApiResponseFactory::error('Logout failed', ['session_token' => 'Invalid session token'], 400);
+                return Response::json($responseDto->toArray(), 400);
+            }
+
+            $responseDto = ApiResponseFactory::success('Logout successful');
+            return Response::json($responseDto->toArray());
+            
+        } catch (InvalidArgumentException $e) {
+            $responseDto = ApiResponseFactory::error('Invalid request data', ['request' => $e->getMessage()], 400);
+            return Response::json($responseDto->toArray(), 400);
         }
-
-        $success = $this->authService->logout($sessionToken);
-
-        if (!$success) {
-            return Response::json([
-                'error' => 'Logout failed',
-                'message' => 'Invalid session token',
-                'code' => 400
-            ], 400);
-        }
-
-        return Response::json([
-            'success' => true,
-            'message' => 'Logout successful'
-        ]);
     }
 
     /**

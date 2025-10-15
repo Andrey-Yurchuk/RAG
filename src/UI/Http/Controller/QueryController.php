@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace RagSystem\UI\Http\Controller;
 
 use Exception;
+use RagSystem\Application\DTO\Query\QueryRequestDTO;
+use RagSystem\Application\DTO\Response\ApiResponseDTO;
+use RagSystem\Application\Factory\ApiResponseFactory;
+use RagSystem\Application\Validation\Query\QueryRequestValidator;
 use RagSystem\Infrastructure\Http\Request;
 use RagSystem\Infrastructure\Http\Response;
 use RagSystem\Application\Service\QueryService;
 use Psr\Log\LoggerInterface;
+use InvalidArgumentException;
 
 class QueryController
 {
@@ -24,38 +29,38 @@ class QueryController
     public function query(Request $request): Response
     {
         try {
-            $data = $request->getBody();
-
-            if (!isset($data['query'])) {
-                return Response::badRequest('Query parameter is required');
+            $dto = QueryRequestDTO::fromArray($request->getBody());
+            $validator = new QueryRequestValidator();
+            $validationResult = $validator->validate($dto);
+            
+            if (!$validationResult->isValid()) {
+                $responseDto = ApiResponseFactory::error('Validation failed', $validationResult->getErrors(), 400);
+                return Response::json($responseDto->toArray(), 400);
             }
 
-            $queryText = $data['query'];
-            $responseTime = isset($data['response_time']) ? (float) $data['response_time'] : null;
+            $query = $this->queryService->processQuery($dto->query, $dto->responseTime);
 
-            if (empty(trim($queryText))) {
-                return Response::badRequest('Query cannot be empty');
-            }
-
-            $query = $this->queryService->processQuery($queryText, $responseTime);
-
-            return Response::json([
-                'success' => true,
-                'data' => [
-                    'query_id' => $query->getId()->toString(),
-                    'query_text' => $query->getQueryText(),
-                    'response' => $query->getResponse(),
-                    'response_time' => $query->getResponseTime(),
-                    'created_at' => $query->getCreatedAt()->format('Y-m-d H:i:s')
-                ],
-                'message' => 'Query processed successfully'
+            $responseDto = ApiResponseFactory::success('Query processed successfully', [
+                'query_id' => $query->getId()->toString(),
+                'query_text' => $query->getQueryText(),
+                'response' => $query->getResponse(),
+                'response_time' => $query->getResponseTime(),
+                'created_at' => $query->getCreatedAt()->format('Y-m-d H:i:s')
             ]);
+
+            return Response::json($responseDto->toArray());
+            
+        } catch (InvalidArgumentException $e) {
+            $responseDto = ApiResponseFactory::error('Invalid request data', ['request' => $e->getMessage()], 400);
+            return Response::json($responseDto->toArray(), 400);
         } catch (Exception $e) {
             $this->logger->error('Failed to process query', [
-                'query' => $data['query'] ?? 'unknown',
+                'query' => $request->getBody()['query'] ?? 'unknown',
                 'error' => $e->getMessage()
             ]);
-            return Response::internalServerError('Failed to process query');
+            
+            $responseDto = ApiResponseFactory::error('Failed to process query', ['server' => 'Internal server error'], 500);
+            return Response::json($responseDto->toArray(), 500);
         }
     }
 
