@@ -5,6 +5,7 @@ class RAGApp {
         this.currentTab = 'query';
         this.sessionToken = null;
         this.currentUser = null;
+        this.currentProcessingInterval = null;
         this.init();
     }
 
@@ -201,6 +202,12 @@ class RAGApp {
 
     // Tab Management
     switchTab(tabName) {
+        // Clean up any running processing intervals
+        if (this.currentProcessingInterval) {
+            clearInterval(this.currentProcessingInterval);
+            this.currentProcessingInterval = null;
+        }
+
         // Update active tab
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.classList.remove('active');
@@ -392,12 +399,90 @@ class RAGApp {
                     <span><i class="fas fa-file-${doc.file_type || 'text'}"></i> ${doc.file_type || 'Текст'}</span>
                 </div>
                 <div class="document-actions">
+                    <div class="document-status" id="status-${doc.id}">
+                        <span class="status-indicator checking"><i class="fas fa-spinner fa-pulse"></i> Проверка статуса...</span>
+                    </div>
                     <button class="btn btn-danger btn-small" onclick="app.deleteDocument('${doc.id}')">
                         <i class="fas fa-trash"></i> Удалить
                     </button>
                 </div>
             </div>
         `).join('');
+        
+        // Load processing status for all documents
+        documents.forEach(doc => {
+            this.loadDocumentStatus(doc.id);
+        });
+    }
+
+    async loadDocumentStatus(documentId) {
+        try {
+            const response = await fetch(`${this.API_BASE}/api/v1/documents/${documentId}/processing-status`, {
+                headers: {
+                    'Authorization': `Bearer ${this.sessionToken}`
+                }
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                this.updateDocumentStatus(documentId, result.data);
+                
+                // If still processing, poll again
+                if (result.data.status === 'processing' || result.data.status === 'pending') {
+                    setTimeout(() => {
+                        this.loadDocumentStatus(documentId);
+                    }, 1000);
+                }
+            } else {
+                this.updateDocumentStatus(documentId, { status: 'unknown' });
+            }
+        } catch (error) {
+            console.error('Error loading document status:', error);
+            this.updateDocumentStatus(documentId, { status: 'error' });
+        }
+    }
+
+    updateDocumentStatus(documentId, statusData) {
+        const statusElement = document.getElementById(`status-${documentId}`);
+        if (!statusElement) return;
+
+        let statusHTML = '';
+        
+        switch (statusData.status) {
+            case 'pending':
+                statusHTML = `<span class="status-indicator pending"><i class="fas fa-clock"></i> В очереди</span>`;
+                break;
+            
+            case 'processing':
+                const percentage = statusData.percentage || 0;
+                const processed = statusData.processed || 0;
+                const total = statusData.total || 0;
+                statusHTML = `
+                    <span class="status-indicator processing">
+                        <i class="fas fa-cog fa-spin"></i> Обработка: ${Math.round(percentage)}%
+                        ${total > 0 ? `(${processed}/${total})` : ''}
+                    </span>
+                `;
+                break;
+            
+            case 'completed':
+                statusHTML = `<span class="status-indicator completed"><i class="fas fa-check-circle"></i> Готов</span>`;
+                break;
+            
+            case 'failed':
+                const errorMsg = statusData.error || 'Ошибка обработки';
+                statusHTML = `<span class="status-indicator failed" title="${errorMsg}"><i class="fas fa-exclamation-circle"></i> Ошибка</span>`;
+                break;
+            
+            case 'not_found':
+                statusHTML = `<span class="status-indicator completed"><i class="fas fa-check-circle"></i> Готов</span>`;
+                break;
+            
+            default:
+                statusHTML = `<span class="status-indicator unknown"><i class="fas fa-question-circle"></i> Неизвестно</span>`;
+        }
+        
+        statusElement.innerHTML = statusHTML;
     }
 
     async deleteDocument(id) {
@@ -456,9 +541,13 @@ class RAGApp {
             const data = await response.json();
 
             if (data.success) {
-                this.showToast('Документ добавлен успешно!', 'success');
+                this.showToast('Документ добавлен в очередь обработки', 'success');
                 document.getElementById('textForm').reset();
-                this.loadDocuments();
+                
+                // Auto-switch to documents tab after a short delay
+                setTimeout(() => {
+                    this.switchTab('documents');
+                }, 1500);
             } else {
                 throw new Error(data.message || 'Ошибка при добавлении документа');
             }
@@ -586,6 +675,7 @@ class RAGApp {
     }
 
     async submitFileUpload() {
+        console.log('submitFileUpload called');
         const fileInput = document.getElementById('fileInput');
 
         if (!fileInput) {
@@ -593,6 +683,8 @@ class RAGApp {
             this.showToast('Ошибка: элемент загрузки файла не найден', 'error');
             return;
         }
+        
+        console.log('fileInput found, files:', fileInput.files);
 
         const file = fileInput.files[0];
 
@@ -649,11 +741,17 @@ class RAGApp {
             }
 
             const data = await response.json();
+            console.log('Upload response:', data);
 
             if (data.success) {
-                this.showToast('Файл загружен успешно!', 'success');
+                console.log('Upload successful, document ID:', data.data?.id);
+                this.showToast('Файл загружен и добавлен в очередь обработки', 'success');
                 this.resetFileDropZone();
-                this.loadDocuments();
+                
+                // Auto-switch to documents tab after a short delay
+                setTimeout(() => {
+                    this.switchTab('documents');
+                }, 1500);
             } else {
                 throw new Error(data.message || 'Ошибка при загрузке файла');
             }
@@ -667,6 +765,146 @@ class RAGApp {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fas fa-upload"></i> Загрузить файл';
             }
+        }
+    }
+
+    // Document Processing Progress Tracking
+    showInitialProgress() {
+        const progressContainer = document.getElementById('processingProgressContainer');
+        if (progressContainer) {
+            progressContainer.style.display = 'block';
+        }
+
+        // Show initial pending state
+        const progressBar = document.getElementById('processingProgressBar');
+        const statusSpan = document.getElementById('processingStatus');
+        const percentageSpan = document.getElementById('processingPercentage');
+        const detailsDiv = document.getElementById('processingDetails');
+
+        if (progressBar && statusSpan && percentageSpan && detailsDiv) {
+            statusSpan.textContent = 'Загрузка завершена, начинается обработка...';
+            progressBar.style.width = '0%';
+            progressBar.className = 'progress-bar-fill';
+            percentageSpan.textContent = '0%';
+            detailsDiv.innerHTML = '<small>Документ добавлен в очередь обработки</small>';
+        }
+    }
+
+    trackDocumentProcessing(documentId) {
+        // Show progress container
+        const progressContainer = document.getElementById('processingProgressContainer');
+        if (progressContainer) {
+            progressContainer.style.display = 'block';
+        }
+
+        // Start polling for processing status
+        const pollInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`${this.API_BASE}/api/v1/documents/${documentId}/processing-status`, {
+                    headers: {
+                        'Authorization': `Bearer ${this.sessionToken}`
+                    }
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    const progress = result.data;
+                    this.updateProcessingProgress(progress);
+
+                    // Stop polling if completed or failed
+                    if (progress.status === 'completed' || progress.status === 'failed') {
+                        clearInterval(pollInterval);
+                        
+                        // Hide progress bar after a longer delay to ensure user sees completion
+                        setTimeout(() => {
+                            if (progressContainer) {
+                                progressContainer.style.display = 'none';
+                            }
+                            // Reset file drop zone after hiding progress
+                            this.resetFileDropZone();
+                            // Reload documents list to show updated status
+                            this.loadDocuments();
+                        }, 5000);
+                    }
+                }
+            } catch (error) {
+                console.error('Error tracking progress:', error);
+                clearInterval(pollInterval);
+                
+                // Show error in progress details
+                const progressDetails = document.getElementById('processingDetails');
+                if (progressDetails) {
+                    progressDetails.innerHTML = `<small style="color: #ffcdd2;">Ошибка отслеживания прогресса</small>`;
+                }
+            }
+        }, 500); // Poll every 500ms for more responsive updates
+
+        // Store interval ID for potential cleanup
+        this.currentProcessingInterval = pollInterval;
+    }
+
+    updateProcessingProgress(progress) {
+        const progressBar = document.getElementById('processingProgressBar');
+        const statusSpan = document.getElementById('processingStatus');
+        const percentageSpan = document.getElementById('processingPercentage');
+        const detailsDiv = document.getElementById('processingDetails');
+
+        if (!progressBar || !statusSpan || !percentageSpan || !detailsDiv) {
+            console.error('Progress elements not found in DOM');
+            return;
+        }
+
+        // Update progress bar width
+        progressBar.style.width = `${progress.percentage}%`;
+
+        // Update status text and styling based on status
+        switch (progress.status) {
+            case 'pending':
+                statusSpan.textContent = 'Ожидание обработки...';
+                progressBar.className = 'progress-bar-fill';
+                detailsDiv.innerHTML = '<small>Документ добавлен в очередь обработки</small>';
+                break;
+
+            case 'processing':
+                statusSpan.textContent = 'Обработка документа';
+                progressBar.className = 'progress-bar-fill';
+                percentageSpan.textContent = `${Math.round(progress.percentage)}%`;
+                
+                if (progress.total > 0) {
+                    detailsDiv.innerHTML = `<small>Обработано ${progress.processed} из ${progress.total} фрагментов</small>`;
+                } else {
+                    detailsDiv.innerHTML = '<small>Подготовка к обработке...</small>';
+                }
+                break;
+
+            case 'completed':
+                statusSpan.textContent = '✓ Обработка завершена!';
+                progressBar.className = 'progress-bar-fill completed';
+                progressBar.style.width = '100%';
+                percentageSpan.textContent = '100%';
+                detailsDiv.innerHTML = `<small>Документ успешно обработан и добавлен в систему</small>`;
+                break;
+
+            case 'failed':
+                statusSpan.textContent = '✗ Ошибка обработки';
+                progressBar.className = 'progress-bar-fill failed';
+                percentageSpan.textContent = '';
+                const errorMsg = progress.error || 'Неизвестная ошибка';
+                detailsDiv.innerHTML = `<small style="color: #ffcdd2;">${errorMsg}</small>`;
+                break;
+
+            case 'not_found':
+                statusSpan.textContent = 'Статус не найден';
+                progressBar.className = 'progress-bar-fill';
+                progressBar.style.width = '0%';
+                percentageSpan.textContent = '';
+                detailsDiv.innerHTML = '<small>Информация о статусе обработки недоступна</small>';
+                break;
+
+            default:
+                statusSpan.textContent = 'Обработка...';
+                progressBar.className = 'progress-bar-fill';
+                detailsDiv.innerHTML = '<small>Обработка документа...</small>';
         }
     }
 
