@@ -101,11 +101,14 @@ class ServiceProvider
             $rabbitMQPort = $_ENV['RABBITMQ_PORT'] ?? null;
             $rabbitMQUser = $_ENV['RABBITMQ_USER'] ?? null;
             $rabbitMQPassword = $_ENV['RABBITMQ_PASSWORD'] ?? null;
-            
+
             if (!$rabbitMQHost || !$rabbitMQPort || !$rabbitMQUser || !$rabbitMQPassword) {
-                throw new RuntimeException("RabbitMQ configuration is incomplete. Please check environment variables: RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PASSWORD");
+                throw new RuntimeException(
+                    "RabbitMQ configuration is incomplete. Please check environment variables: " .
+                    "RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PASSWORD"
+                );
             }
-            
+
             return new RabbitMQService(
                 $rabbitMQHost,
                 (int)$rabbitMQPort,
@@ -127,11 +130,14 @@ class ServiceProvider
             $redisPort = $_ENV['REDIS_PORT'] ?? null;
             $redisPassword = $_ENV['REDIS_PASSWORD'] ?? null;
             $redisPrefix = $_ENV['REDIS_TASK_CACHE_PREFIX'] ?? null;
-            
+
             if (!$redisHost || !$redisPort || !$redisPassword || !$redisPrefix) {
-                throw new Exception("Redis configuration is incomplete. Please check environment variables: REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_TASK_CACHE_PREFIX");
+                throw new Exception(
+                    "Redis configuration is incomplete. Please check environment variables: " .
+                    "REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_TASK_CACHE_PREFIX"
+                );
             }
-            
+
             return new TaskStatusService(
                 $redisHost,
                 (int)$redisPort,

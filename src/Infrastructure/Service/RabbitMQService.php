@@ -39,7 +39,7 @@ final class RabbitMQService implements QueueServiceInterface
             $this->connection = new AMQPStreamConnection($host, $port, $user, $password);
             $this->channel = $this->connection->channel();
             $this->isConnected = true;
-            
+
             $this->logger->info('RabbitMQ connection established', [
                 'host' => $host,
                 'port' => $port,
@@ -73,7 +73,7 @@ final class RabbitMQService implements QueueServiceInterface
             );
 
             $this->channel->basic_publish($msg, '', $queueName);
-            
+
             $this->logger->info('Message published to queue', [
                 'queue' => $queueName,
                 'message_type' => $message['type'] ?? 'unknown'
@@ -111,7 +111,7 @@ final class RabbitMQService implements QueueServiceInterface
                 function (AMQPMessage $msg) use ($callback, $queueName) {
                     try {
                         $body = json_decode($msg->getBody(), true, 512, JSON_THROW_ON_ERROR);
-                        
+
                         $this->logger->info("Received message from queue", [
                             'queue' => $queueName,
                             'message_type' => $body['type'] ?? 'unknown'
@@ -120,7 +120,7 @@ final class RabbitMQService implements QueueServiceInterface
                         $callback($body);
 
                         $msg->ack();
-                        
+
                         $this->logger->info("Message processed successfully");
                     } catch (Exception $e) {
                         $this->logger->error("Error processing message", [
@@ -157,7 +157,7 @@ final class RabbitMQService implements QueueServiceInterface
         try {
             $this->channel->queue_declare($queueName, false, true, false, false);
             $queueInfo = $this->channel->queue_declare($queueName, false, true, false, false);
-            
+
             return [
                 'queue_name' => $queueName,
                 'message_count' => $queueInfo[1] ?? 0,

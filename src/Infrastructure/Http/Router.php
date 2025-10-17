@@ -152,7 +152,7 @@ class Router
                 foreach ($pathParams as $param) {
                     $args[] = $param;
                 }
-                
+
                 return call_user_func_array([$controller, $method], $args);
             }
 

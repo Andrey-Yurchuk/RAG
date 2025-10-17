@@ -11,6 +11,7 @@ class TaskStatusService
 {
     private Redis $redis;
     private string $prefix;
+    private LoggerInterface $logger;
 
     public function __construct(
         string $redisHost,
@@ -23,6 +24,7 @@ class TaskStatusService
         $this->redis->connect($redisHost, $redisPort);
         $this->redis->auth($redisPassword);
         $this->prefix = $prefix;
+        $this->logger = $logger;
     }
 
     /**
@@ -36,7 +38,7 @@ class TaskStatusService
         ?string $error = null
     ): void {
         $key = $this->prefix . "document_processing:{$documentId}";
-        
+
         $data = [
             'status' => $status,
             'processed' => $processed,
@@ -44,13 +46,23 @@ class TaskStatusService
             'percentage' => $total > 0 ? round(($processed / $total) * 100, 2) : 0,
             'updated_at' => time()
         ];
-        
+
         if ($error) {
             $data['error'] = $error;
+            $this->logger->error('Document processing error', [
+                'document_id' => $documentId,
+                'error' => $error
+            ]);
         }
-        
+
         $this->redis->hMSet($key, $data);
         $this->redis->expire($key, 3600); // TTL 1 час
+
+        $this->logger->debug('Document processing status updated', [
+            'document_id' => $documentId,
+            'status' => $status,
+            'progress' => "{$processed}/{$total}"
+        ]);
     }
 
     /**
@@ -60,7 +72,7 @@ class TaskStatusService
     {
         $key = $this->prefix . "document_processing:{$documentId}";
         $data = $this->redis->hGetAll($key);
-        
+
         if (empty($data)) {
             return [
                 'status' => 'not_found',
@@ -70,7 +82,7 @@ class TaskStatusService
                 'updated_at' => 0
             ];
         }
-        
+
         return $data;
     }
 
@@ -83,16 +95,16 @@ class TaskStatusService
         ?string $error = null
     ): void {
         $key = $this->prefix . "embedding_generation:{$chunkId}";
-        
+
         $data = [
             'status' => $status,
             'updated_at' => time()
         ];
-        
+
         if ($error) {
             $data['error'] = $error;
         }
-        
+
         $this->redis->hMSet($key, $data);
         $this->redis->expire($key, 1800); // TTL 30 минут
     }
@@ -104,14 +116,14 @@ class TaskStatusService
     {
         $key = $this->prefix . "embedding_generation:{$chunkId}";
         $data = $this->redis->hGetAll($key);
-        
+
         if (empty($data)) {
             return [
                 'status' => 'not_found',
                 'updated_at' => 0
             ];
         }
-        
+
         return $data;
     }
 
@@ -131,7 +143,7 @@ class TaskStatusService
     {
         $pattern = $this->prefix . "{$taskType}:*";
         $keys = $this->redis->keys($pattern);
-        
+
         $tasks = [];
         foreach ($keys as $key) {
             $data = $this->redis->hGetAll($key);
@@ -139,7 +151,7 @@ class TaskStatusService
                 $tasks[] = $data;
             }
         }
-        
+
         return $tasks;
     }
 
@@ -153,7 +165,7 @@ class TaskStatusService
             $this->prefix . "embedding_generation:*",
             $this->prefix . "user_notification:*"
         ];
-        
+
         $cleaned = 0;
         foreach ($patterns as $pattern) {
             $keys = $this->redis->keys($pattern);
@@ -165,7 +177,7 @@ class TaskStatusService
                 }
             }
         }
-        
+
         return $cleaned;
     }
 }

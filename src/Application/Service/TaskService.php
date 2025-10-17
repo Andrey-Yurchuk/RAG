@@ -35,7 +35,7 @@ class TaskService
         ];
 
         $this->queueService->publish('document.processing', $task);
-        
+
         $this->logger->info('Document processing task published', [
             'document_id' => $documentId,
             'file_type' => $fileType
@@ -62,7 +62,7 @@ class TaskService
         ];
 
         $this->queueService->publish('embedding.generation', $task);
-        
+
         $this->logger->info('Embedding generation task published', [
             'chunk_id' => $chunkId,
             'document_id' => $documentId
@@ -87,7 +87,7 @@ class TaskService
         ];
 
         $this->queueService->publish('notification.user', $task);
-        
+
         $this->logger->info('User notification published', [
             'user_id' => $userId,
             'notification_type' => $type

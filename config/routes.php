@@ -35,7 +35,7 @@ $router->group('/api/v1', function ($router) {
 
     // Document upload (protected)
     $router->post('/documents/upload', [DocumentController::class, 'upload']);
-    
+
     // Document processing status (protected)
     $router->get('/documents/{id}/processing-status', [DocumentController::class, 'processingStatus']);
 

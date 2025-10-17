@@ -63,7 +63,7 @@ class DocumentService
             $fileType,
             $content
         );
-        
+
         $this->logger->info('Document created and queued for processing', [
             'document_id' => $document->getId()->toString()
         ]);
