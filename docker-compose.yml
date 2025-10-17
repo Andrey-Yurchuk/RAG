@@ -37,9 +37,14 @@ services:
       - LLM_TIMEOUT=${LLM_TIMEOUT}
       - CHUNK_SIZE=${CHUNK_SIZE}
       - VECTOR_SEARCH_LIMIT=${VECTOR_SEARCH_LIMIT}
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
     depends_on:
       - postgres
       - redis
+      - rabbitmq
       - llm-service
     networks:
       - rag-network
@@ -86,6 +91,27 @@ services:
           memory: 256M
         reservations:
           memory: 128M
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rag-rabbitmq
+    ports:
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+      - "${RABBITMQ_AMQP_PORT:-5672}:5672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - rag-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
   llm-service:
     image: ghcr.io/ggerganov/llama.cpp:server
     container_name: rag-llm
@@ -102,15 +128,62 @@ services:
     restart: unless-stopped
     networks:
       - rag-network
+
+  rag-worker:
+    build:
+      context: .
+      dockerfile: docker/frankenphp/Dockerfile
+    container_name: rag-worker
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./storage:/app/storage
+      - ./bin:/app/bin
+      - ./database:/app/database
+      - ./composer.json:/app/composer.json
+      - ./composer.lock:/app/composer.lock
+    environment:
+      - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}
+      - LLAMA_CPP_URL=${LLAMA_CPP_URL}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - VECTOR_SEARCH_THRESHOLD=${VECTOR_SEARCH_THRESHOLD}
+      - LLM_TIMEOUT=${LLM_TIMEOUT}
+      - CHUNK_SIZE=${CHUNK_SIZE}
+      - VECTOR_SEARCH_LIMIT=${VECTOR_SEARCH_LIMIT}
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - llm-service
+    networks:
+      - rag-network
+    restart: unless-stopped
+    command: >
+      sh -c "
+        php bin/rag-worker.php
+      "
     deploy:
       resources:
         limits:
-          memory: ${LLM_MEMORY_LIMIT:-8G}
+          memory: 1G
         reservations:
-          memory: ${LLM_MEMORY_RESERVATION:-5G}
+          memory: 512M
 volumes:
   postgres_data:
   redis_data:
+  rabbitmq_data:
 networks:
   rag-network:
     driver: bridge 

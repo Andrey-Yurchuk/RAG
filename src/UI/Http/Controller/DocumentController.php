@@ -311,15 +311,14 @@ class DocumentController
 
             move_uploaded_file($filePath, $targetPath);
 
-            // Create document
-            $document = $this->documentService->createDocument(
+            $document = $this->documentService->createDocumentAsync(
                 $fileName,
                 $content,
                 $targetPath,
                 $fileType
             );
 
-            $this->logger->info('Document created successfully', [
+            $this->logger->info('Document created and queued for processing', [
                 'document_id' => $document->getId()->toString(),
                 'file_name' => $fileName
             ]);
@@ -327,7 +326,8 @@ class DocumentController
             return Response::json([
                 'success' => true,
                 'data' => $document->toArray(),
-                'message' => 'File uploaded and processed successfully'
+                'message' => 'File uploaded and queued for processing',
+                'processing_status' => 'pending'
             ], 201);
         } catch (Exception $e) {
             $this->logger->error('Failed to upload file', [
@@ -360,6 +360,44 @@ class DocumentController
                 return 'File upload stopped by extension';
             default:
                 return 'Unknown upload error';
+        }
+    }
+
+    /**
+     * Возвращает статус обработки документа
+     */
+    public function processingStatus(Request $request, string $id): Response
+    {
+        try {
+            $documentId = Uuid::fromString($id);
+            $document = $this->documentService->getDocument($documentId);
+
+            if (!$document) {
+                return Response::notFound('Document not found');
+            }
+
+            $status = $this->documentService->getDocumentProcessingStatus($id);
+
+            return Response::json([
+                'success' => true,
+                'data' => [
+                    'document_id' => $id,
+                    'status' => $status['status'],
+                    'processed' => (int)($status['processed'] ?? 0),
+                    'total' => (int)($status['total'] ?? 0),
+                    'percentage' => (float)($status['percentage'] ?? 0),
+                    'updated_at' => (int)($status['updated_at'] ?? 0),
+                    'error' => $status['error'] ?? null
+                ]
+            ]);
+        } catch (InvalidArgumentException $e) {
+            return Response::badRequest('Invalid document ID');
+        } catch (Exception $e) {
+            $this->logger->error('Failed to get processing status', [
+                'document_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return Response::internalServerError('Failed to get processing status');
         }
     }
 }

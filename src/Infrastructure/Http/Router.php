@@ -147,7 +147,13 @@ class Router
             if (is_array($handler)) {
                 [$class, $method] = $handler;
                 $controller = $this->container->get($class);
-                return $controller->$method($requestWithParams);
+
+                $args = [$requestWithParams];
+                foreach ($pathParams as $param) {
+                    $args[] = $param;
+                }
+                
+                return call_user_func_array([$controller, $method], $args);
             }
 
             if (is_callable($handler)) {

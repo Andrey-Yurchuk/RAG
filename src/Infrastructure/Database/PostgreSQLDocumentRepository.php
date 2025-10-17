@@ -113,12 +113,19 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
      */
     public function saveChunk(DocumentChunk $chunk): void
     {
+        $embedding = $chunk->getEmbedding();
+
+        $embeddingString = null;
+        if ($embedding) {
+            $embeddingString = '[' . implode(',', $embedding) . ']';
+        }
+
         $data = [
             'id' => $chunk->getId()->toString(),
             'document_id' => $chunk->getDocumentId()->toString(),
             'chunk_text' => $chunk->getChunkText(),
             'chunk_index' => $chunk->getChunkIndex(),
-            'embedding' => $chunk->getEmbedding() ? json_encode($chunk->getEmbedding()) : null,
+            'embedding' => $embeddingString,
             'created_at' => $chunk->getCreatedAt()->format('Y-m-d H:i:s'),
         ];
 
@@ -128,7 +135,7 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
             ON CONFLICT (id) DO UPDATE SET
                 chunk_text = EXCLUDED.chunk_text,
                 chunk_index = EXCLUDED.chunk_index,
-                embedding = EXCLUDED.embedding
+                embedding = EXCLUDED.embedding::vector
         ';
 
         $this->connection->executeStatement($sql, $data);
@@ -146,11 +153,10 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
 
         $chunks = [];
         foreach ($results as $result) {
-            // Преобразуем embedding из JSON-строки обратно в массив
             if ($result['embedding']) {
-                $result['embedding'] = json_decode($result['embedding'], true, 512, JSON_THROW_ON_ERROR);
+                $embeddingString = trim($result['embedding'], '[]');
+                $result['embedding'] = array_map('floatval', explode(',', $embeddingString));
             }
-
             $chunks[] = DocumentChunk::fromArray($result);
         }
 
@@ -162,7 +168,7 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
      */
     public function searchSimilarChunks(array $queryEmbedding, int $limit = 10, float $threshold = 0.8): array
     {
-        $embeddingJson = json_encode($queryEmbedding, JSON_THROW_ON_ERROR);
+        $embeddingString = '[' . implode(',', $queryEmbedding) . ']';
 
         $sql = '
             SELECT 
@@ -179,7 +185,7 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
         ';
 
         $results = $this->connection->fetchAllAssociative($sql, [
-            'embedding' => $embeddingJson,
+            'embedding' => $embeddingString,
             'threshold' => $threshold,
             'limit' => $limit
         ]);
@@ -187,9 +193,9 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
         $chunks = [];
         foreach ($results as $result) {
             if ($result['embedding']) {
-                $result['embedding'] = json_decode($result['embedding'], true);
+                $embeddingString = trim($result['embedding'], '[]');
+                $result['embedding'] = array_map('floatval', explode(',', $embeddingString));
             }
-
             $chunks[] = array_merge($result, [
                 'similarity_score' => $result['similarity']
             ]);

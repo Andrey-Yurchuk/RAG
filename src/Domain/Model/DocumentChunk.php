@@ -36,7 +36,7 @@ final class DocumentChunk
             $chunk->id = Uuid::fromString($data['id']);
         }
 
-        if ($data['createdAt']) {
+        if (isset($data['createdAt']) && $data['createdAt']) {
             $chunk->createdAt = new DateTimeImmutable($data['createdAt']);
         }
 

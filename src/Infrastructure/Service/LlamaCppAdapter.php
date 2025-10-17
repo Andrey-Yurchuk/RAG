@@ -55,31 +55,52 @@ class LlamaCppAdapter
         $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
         $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text);
 
-        // Простое кэширование на основе хеша текста
         $textHash = md5($text);
         if (isset($this->embeddingCache[$textHash])) {
             return $this->embeddingCache[$textHash];
         }
 
         try {
-            $response = $this->httpClient->post($this->llamaCppUrl . '/embedding', [
-                'json' => ['content' => $text],
-                'timeout' => 30
-            ]);
+            $this->logger->info('Generating embedding', ['text_length' => strlen($text), 'text_preview' => substr($text, 0, 100)]);
+            
+                   $response = $this->httpClient->post($this->llamaCppUrl . '/embedding', [
+                       'json' => ['content' => $text],
+                       'timeout' => 120
+                   ]);
 
             if ($response->getStatusCode() === 200) {
-                $data = json_decode($response->getBody()->getContents(), true);
-                $embedding = $data['embedding'] ?? [];
+                $responseBody = $response->getBody()->getContents();
+                $this->logger->info('LLM response received', ['response_length' => strlen($responseBody), 'response_preview' => substr($responseBody, 0, 200)]);
+                
+                $data = json_decode($responseBody, true);
+                $this->logger->info('Parsed LLM data', ['data_keys' => array_keys($data ?? []), 'has_embedding' => isset($data['embedding'])]);
 
-                // Обеспечиваем точную размерность эмбеддинга 1536 элементов
-                if (count($embedding) > 1536) {
-                    $embedding = array_slice($embedding, 0, 1536);
-                } elseif (count($embedding) < 1536) {
-                    $embedding = array_merge($embedding, array_fill(0, 1536 - count($embedding), 0.0));
-                }
+                       $embedding = [];
+                       if (isset($data['embedding']) && is_array($data['embedding'])) {
+                           $embedding = $data['embedding'];
+                       } elseif (is_array($data) && count($data) > 0 && isset($data[0]['embedding'])) {
+                           $embedding = $data[0]['embedding'];
+                       }
 
-                $this->embeddingCache[$textHash] = $embedding;
-                return $embedding;
+                       if (!empty($embedding) && is_array($embedding) && is_array($embedding[0])) {
+                           $embedding = $embedding[0];
+                       }
+
+                       if (count($embedding) > 1536) {
+                           $embedding = array_slice($embedding, 0, 1536);
+                           $this->logger->info('Embedding truncated to 1536 dimensions');
+                       } elseif (count($embedding) < 1536) {
+                           $originalCount = count($embedding);
+                           $embedding = array_merge($embedding, array_fill(0, 1536 - count($embedding), 0.0));
+                           $this->logger->warning('Embedding padded with zeros', ['original_count' => $originalCount, 'final_count' => count($embedding)]);
+                       }
+                       
+                       $this->logger->info('Raw embedding', ['embedding_count' => count($embedding), 'embedding_preview' => array_slice($embedding, 0, 10), 'embedding_type' => gettype($embedding), 'first_element_type' => !empty($embedding) ? gettype($embedding[0]) : 'empty']);
+                       
+
+                       $this->embeddingCache[$textHash] = $embedding;
+                       $this->logger->info('Embedding generated successfully', ['final_count' => count($embedding)]);
+                       return $embedding;
             }
 
             $this->logger->warning('Embedding generation failed', ['status' => $response->getStatusCode()]);

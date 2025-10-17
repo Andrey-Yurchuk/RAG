@@ -10,6 +10,8 @@ use RagSystem\Domain\Model\DocumentChunk;
 use RagSystem\Domain\Repository\DocumentRepositoryInterface;
 use RagSystem\Application\Service\EmbeddingService;
 use RagSystem\Application\Service\TextProcessingService;
+use RagSystem\Application\Service\TaskService;
+use RagSystem\Application\Service\TaskStatusService;
 use Ramsey\Uuid\UuidInterface;
 use Psr\Log\LoggerInterface;
 
@@ -19,6 +21,8 @@ class DocumentService
         private DocumentRepositoryInterface $documentRepository,
         private EmbeddingService $embeddingService,
         private TextProcessingService $textProcessingService,
+        private TaskService $taskService,
+        private TaskStatusService $taskStatusService,
         private LoggerInterface $logger
     ) {
     }
@@ -37,6 +41,32 @@ class DocumentService
         $this->logger->info('Document created', ['document_id' => $document->getId()->toString()]);
 
         $this->processDocumentChunks($document);
+
+        return $document;
+    }
+
+    /**
+     * Создает новый документ асинхронно (без обработки чанков)
+     */
+    public function createDocumentAsync(
+        string $title,
+        string $content,
+        ?string $filePath = null,
+        ?string $fileType = null
+    ): Document {
+        $document = new Document($title, $content, $filePath, $fileType);
+        $this->documentRepository->save($document);
+
+        $this->taskService->publishDocumentProcessingTask(
+            $document->getId()->toString(),
+            $filePath,
+            $fileType,
+            $content
+        );
+        
+        $this->logger->info('Document created and queued for processing', [
+            'document_id' => $document->getId()->toString()
+        ]);
 
         return $document;
     }
@@ -112,6 +142,32 @@ class DocumentService
         $queryEmbedding = $this->embeddingService->generateEmbedding($query);
 
         return $this->documentRepository->searchSimilarChunks($queryEmbedding, $limit, $threshold);
+    }
+
+    /**
+     * Получает статус обработки документа
+     */
+    public function getDocumentProcessingStatus(string $documentId): array
+    {
+        return $this->taskStatusService->getDocumentProcessingStatus($documentId);
+    }
+
+    /**
+     * Проверяет, завершена ли обработка документа
+     */
+    public function isDocumentProcessingCompleted(string $documentId): bool
+    {
+        $status = $this->getDocumentProcessingStatus($documentId);
+        return $status['status'] === 'completed';
+    }
+
+    /**
+     * Проверяет, есть ли ошибки при обработке документа
+     */
+    public function hasDocumentProcessingError(string $documentId): bool
+    {
+        $status = $this->getDocumentProcessingStatus($documentId);
+        return $status['status'] === 'failed';
     }
 
     /**

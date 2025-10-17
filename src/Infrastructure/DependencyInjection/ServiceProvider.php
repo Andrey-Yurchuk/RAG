@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RagSystem\Infrastructure\DependencyInjection;
 
+use Exception;
 use RagSystem\Domain\Repository\DocumentRepositoryInterface;
 use RagSystem\Domain\Repository\QueryRepositoryInterface;
 use RagSystem\Domain\Repository\UserRepositoryInterface;
@@ -20,6 +21,10 @@ use RagSystem\Application\Service\LLMService;
 use RagSystem\Application\Service\TextProcessingService;
 use RagSystem\Application\Service\AuthService;
 use RagSystem\Application\Service\AuthorizationService;
+use RagSystem\Application\Service\TaskService;
+use RagSystem\Application\Service\TaskStatusService;
+use RagSystem\Infrastructure\Service\RabbitMQService;
+use RagSystem\Domain\Service\QueueServiceInterface;
 use RagSystem\UI\Http\Controller\DocumentController;
 use RagSystem\UI\Http\Controller\QueryController;
 use RagSystem\UI\Http\Controller\HealthController;
@@ -31,6 +36,7 @@ use GuzzleHttp\Client;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 
 class ServiceProvider
 {
@@ -89,6 +95,52 @@ class ServiceProvider
             ]);
         });
 
+        // Queue Services
+        $container->bind(QueueServiceInterface::class, function (Container $container) {
+            $rabbitMQHost = $_ENV['RABBITMQ_HOST'] ?? null;
+            $rabbitMQPort = $_ENV['RABBITMQ_PORT'] ?? null;
+            $rabbitMQUser = $_ENV['RABBITMQ_USER'] ?? null;
+            $rabbitMQPassword = $_ENV['RABBITMQ_PASSWORD'] ?? null;
+            
+            if (!$rabbitMQHost || !$rabbitMQPort || !$rabbitMQUser || !$rabbitMQPassword) {
+                throw new RuntimeException("RabbitMQ configuration is incomplete. Please check environment variables: RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PASSWORD");
+            }
+            
+            return new RabbitMQService(
+                $rabbitMQHost,
+                (int)$rabbitMQPort,
+                $rabbitMQUser,
+                $rabbitMQPassword,
+                $container->get(LoggerInterface::class)
+            );
+        });
+
+        $container->bind(TaskService::class, function (Container $container) {
+            return new TaskService(
+                $container->get(QueueServiceInterface::class),
+                $container->get(LoggerInterface::class)
+            );
+        });
+
+        $container->bind(TaskStatusService::class, function (Container $container) {
+            $redisHost = $_ENV['REDIS_HOST'] ?? null;
+            $redisPort = $_ENV['REDIS_PORT'] ?? null;
+            $redisPassword = $_ENV['REDIS_PASSWORD'] ?? null;
+            $redisPrefix = $_ENV['REDIS_TASK_CACHE_PREFIX'] ?? null;
+            
+            if (!$redisHost || !$redisPort || !$redisPassword || !$redisPrefix) {
+                throw new Exception("Redis configuration is incomplete. Please check environment variables: REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_TASK_CACHE_PREFIX");
+            }
+            
+            return new TaskStatusService(
+                $redisHost,
+                (int)$redisPort,
+                $redisPassword,
+                $redisPrefix,
+                $container->get(LoggerInterface::class)
+            );
+        });
+
         // LLM Adapter
         $container->bind(LlamaCppAdapter::class, function (Container $container) {
             $config = $container->get('config');
@@ -131,6 +183,8 @@ class ServiceProvider
                 $container->get(DocumentRepositoryInterface::class),
                 $container->get(EmbeddingService::class),
                 $container->get(TextProcessingService::class),
+                $container->get(TaskService::class),
+                $container->get(TaskStatusService::class),
                 $container->get(LoggerInterface::class)
             );
         });

@@ -10,10 +10,11 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libpq-dev \
     libzip-dev \
+    librabbitmq-dev \
     unzip \
-    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip \
-    && pecl install redis \
-    && docker-php-ext-enable redis
+    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip sockets \
+    && pecl install redis amqp \
+    && docker-php-ext-enable redis amqp
 
 RUN echo "max_execution_time = 120" >> /usr/local/etc/php/conf.d/llm.ini && \
     echo "memory_limit = 512M" >> /usr/local/etc/php/conf.d/llm.ini && \
