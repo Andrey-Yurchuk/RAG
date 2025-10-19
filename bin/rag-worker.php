@@ -33,6 +33,10 @@ try {
     exit(1);
 }
 
+$logger->info('Waiting for RabbitMQ to be ready...');
+sleep(10);
+$logger->info('Starting RabbitMQ connection...');
+
 try {
     $rabbitMQHost = $_ENV['RABBITMQ_HOST'] ?? null;
     $rabbitMQPort = $_ENV['RABBITMQ_PORT'] ?? null;
@@ -42,6 +46,8 @@ try {
     if (!$rabbitMQHost || !$rabbitMQPort || !$rabbitMQUser || !$rabbitMQPassword) {
         throw new RuntimeException("RabbitMQ configuration is incomplete. Please check environment variables: RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PASSWORD");
     }
+    
+    $logger->info("Connecting to RabbitMQ at {$rabbitMQHost}:{$rabbitMQPort}");
     
     $rabbitMQService = new RabbitMQService(
         $rabbitMQHost,

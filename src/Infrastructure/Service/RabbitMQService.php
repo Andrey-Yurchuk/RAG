@@ -27,31 +27,51 @@ final class RabbitMQService implements QueueServiceInterface
         LoggerInterface $logger
     ) {
         $this->logger = $logger;
-        $this->connect($host, $port, $user, $password);
+        $this->connectWithRetry($host, $port, $user, $password);
     }
 
     /**
-     * Устанавливает соединение с RabbitMQ
+     * Устанавливает соединение с RabbitMQ с retry механизмом
      */
-    private function connect(string $host, int $port, string $user, string $password): void
+    private function connectWithRetry(string $host, int $port, string $user, string $password): void
     {
-        try {
-            $this->connection = new AMQPStreamConnection($host, $port, $user, $password);
-            $this->channel = $this->connection->channel();
-            $this->isConnected = true;
+        $maxRetries = 10;
+        $retryDelay = 5; // секунды
+        
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                $this->connection = new AMQPStreamConnection($host, $port, $user, $password);
+                $this->channel = $this->connection->channel();
+                $this->isConnected = true;
 
-            $this->logger->info('RabbitMQ connection established', [
-                'host' => $host,
-                'port' => $port,
-                'user' => $user
-            ]);
-        } catch (Exception $e) {
-            $this->logger->error('Failed to connect to RabbitMQ', [
-                'error' => $e->getMessage(),
-                'host' => $host,
-                'port' => $port
-            ]);
-            throw $e;
+                $this->logger->info('RabbitMQ connection established', [
+                    'host' => $host,
+                    'port' => $port,
+                    'user' => $user,
+                    'attempt' => $attempt
+                ]);
+                return; // Успешное подключение
+                
+            } catch (Exception $e) {
+                $this->logger->warning("RabbitMQ connection attempt {$attempt}/{$maxRetries} failed", [
+                    'error' => $e->getMessage(),
+                    'host' => $host,
+                    'port' => $port
+                ]);
+                
+                if ($attempt === $maxRetries) {
+                    $this->logger->error('Failed to connect to RabbitMQ after all retries', [
+                        'error' => $e->getMessage(),
+                        'host' => $host,
+                        'port' => $port,
+                        'total_attempts' => $maxRetries
+                    ]);
+                    throw $e;
+                }
+                
+                $this->logger->info("Waiting {$retryDelay} seconds before retry...");
+                sleep($retryDelay);
+            }
         }
     }
 
