@@ -42,6 +42,9 @@ services:
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
       - REDIS_TASK_CACHE_PREFIX=${REDIS_TASK_CACHE_PREFIX}
+      - HYBRID_SEARCH_VECTOR_TOP_K=${HYBRID_SEARCH_VECTOR_TOP_K}
+      - HYBRID_SEARCH_KEYWORD_TOP_K=${HYBRID_SEARCH_KEYWORD_TOP_K}
+      - HYBRID_SEARCH_RRF_K=${HYBRID_SEARCH_RRF_K}
     depends_on:
       - postgres
       - redis
@@ -164,6 +167,9 @@ services:
       - LLM_TIMEOUT=${LLM_TIMEOUT}
       - CHUNK_SIZE=${CHUNK_SIZE}
       - VECTOR_SEARCH_LIMIT=${VECTOR_SEARCH_LIMIT}
+      - HYBRID_SEARCH_VECTOR_TOP_K=${HYBRID_SEARCH_VECTOR_TOP_K}
+      - HYBRID_SEARCH_KEYWORD_TOP_K=${HYBRID_SEARCH_KEYWORD_TOP_K}
+      - HYBRID_SEARCH_RRF_K=${HYBRID_SEARCH_RRF_K}
     depends_on:
       - postgres
       - redis
@@ -172,10 +178,10 @@ services:
     networks:
       - rag-network
     restart: unless-stopped
-    command: >
-      sh -c "
-        php bin/rag-worker.php
-      "
+    command: php bin/rag-worker.php
+    healthcheck:
+      test: ["CMD", "true"]
+      disable: true
     deploy:
       resources:
         limits:

@@ -23,12 +23,12 @@ interface DocumentRepositoryInterface
     /**
      * Порог сходства для векторного поиска (0.0 - 1.0)
      */
-    public const float DEFAULT_SIMILARITY_THRESHOLD = 0.8;
+    public const float DEFAULT_SIMILARITY_THRESHOLD = 0.3;
 
     /**
      * Максимальное количество результатов для векторного поиска
      */
-    public const int DEFAULT_SEARCH_LIMIT = 10;
+    public const int DEFAULT_SEARCH_LIMIT = 5;
 
     /**
      * Сохраняет документ в базу данных
@@ -73,4 +73,21 @@ interface DocumentRepositoryInterface
      * Удаляет все фрагменты документа по идентификатору документа
      */
     public function deleteChunksByDocumentId(UuidInterface $documentId): bool;
+
+    /**
+     * Поиск чанков с использованием PostgreSQL Full-Text Search
+     */
+    public function searchByKeywords(string $query, int $limit = self::DEFAULT_SEARCH_LIMIT): array;
+
+    /**
+     * Гибридный поиск: комбинация векторного и ключевого поиска с RRF
+     */
+    public function searchHybrid(
+        string $queryText,
+        array $queryEmbedding,
+        int $limit = self::DEFAULT_SEARCH_LIMIT,
+        float $vectorThreshold = self::DEFAULT_SIMILARITY_THRESHOLD,
+        int $vectorTopK = 20,
+        int $keywordTopK = 20
+    ): array;
 }

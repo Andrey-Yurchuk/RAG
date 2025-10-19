@@ -20,7 +20,7 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
     }
 
     /**
-     * Сохраняет документ в базу данных (insert или update при конфликте)
+     * {@inheritdoc}
      */
     public function save(Document $document): void
     {
@@ -51,7 +51,7 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
     }
 
     /**
-     * Находит документ по его идентификатору
+     * {@inheritdoc}
      */
     public function findById(UuidInterface $id): ?Document
     {
@@ -73,7 +73,7 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
     }
 
     /**
-     * Возвращает список всех документов с пагинацией
+     * {@inheritdoc}
      */
     public function findAll(int $limit = self::DEFAULT_LIMIT, int $offset = self::DEFAULT_OFFSET): array
     {
@@ -92,7 +92,7 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
     }
 
     /**
-     * Удаляет документ
+     * {@inheritdoc}
      */
     public function delete(UuidInterface $id): bool
     {
@@ -109,7 +109,7 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
     }
 
     /**
-     * Сохраняет фрагмент (чанк) документа в базу данных (insert или update при конфликте)
+     * {@inheritdoc}
      */
     public function saveChunk(DocumentChunk $chunk): void
     {
@@ -142,7 +142,7 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
     }
 
     /**
-     * Находит все фрагменты (чанки) документа по его идентификатору
+     * {@inheritdoc}
      */
     public function findChunksByDocumentId(UuidInterface $documentId): array
     {
@@ -164,9 +164,9 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
     }
 
     /**
-     * Ищет похожие фрагменты (чанки) документов по векторному представлению запроса
+     * {@inheritdoc}
      */
-    public function searchSimilarChunks(array $queryEmbedding, int $limit = 10, float $threshold = 0.8): array
+    public function searchSimilarChunks(array $queryEmbedding, int $limit = 5, float $threshold = 0.3): array
     {
         $embeddingString = '[' . implode(',', $queryEmbedding) . ']';
 
@@ -210,7 +210,7 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
     }
 
     /**
-     * Удаляет все фрагменты документа по идентификатору документа
+     * {@inheritdoc}
      */
     public function deleteChunksByDocumentId(UuidInterface $documentId): bool
     {
@@ -225,5 +225,183 @@ class PostgreSQLDocumentRepository implements DocumentRepositoryInterface
         ]);
 
         return $affectedRows > 0;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function searchByKeywords(string $query, int $limit = 5): array
+    {
+        $tsQuery = $this->prepareTsQuery($query);
+
+        $sql = '
+            SELECT 
+                dc.*,
+                d.title,
+                d.file_path,
+                ts_rank_cd(dc.search_vector, to_tsquery(\'russian\', :ts_query)) as rank
+            FROM document_chunks dc
+            JOIN documents d ON dc.document_id = d.id
+            WHERE dc.search_vector @@ to_tsquery(\'russian\', :ts_query)
+            ORDER BY rank DESC
+            LIMIT :limit
+        ';
+
+        $results = $this->connection->fetchAllAssociative($sql, [
+            'ts_query' => $tsQuery,
+            'limit' => $limit
+        ]);
+
+        $chunks = [];
+        foreach ($results as $result) {
+            if ($result['embedding']) {
+                $embeddingString = trim($result['embedding'], '[]');
+                $result['embedding'] = array_map('floatval', explode(',', $embeddingString));
+            }
+            $chunks[] = array_merge($result, [
+                'bm25_score' => (float)$result['rank']
+            ]);
+        }
+
+        $this->logger->debug('Keyword search completed', [
+            'results_count' => count($chunks),
+            'query' => $query
+        ]);
+
+        return $chunks;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function searchHybrid(
+        string $queryText,
+        array $queryEmbedding,
+        int $limit = 5,
+        float $vectorThreshold = 0.3,
+        int $vectorTopK = 20,
+        int $keywordTopK = 20
+    ): array {
+        // 1. Векторный поиск (топ-K кандидатов)
+        $vectorResults = $this->searchSimilarChunks(
+            $queryEmbedding,
+            $vectorTopK,
+            $vectorThreshold
+        );
+
+        // 2. Ключевой поиск (топ-K кандидатов)
+        $keywordResults = $this->searchByKeywords($queryText, $keywordTopK);
+
+        // 3. Reciprocal Rank Fusion (RRF)
+        $fusedResults = $this->reciprocalRankFusion(
+            $vectorResults,
+            $keywordResults,
+            $limit
+        );
+
+        $this->logger->debug('Hybrid search completed', [
+            'vector_count' => count($vectorResults),
+            'keyword_count' => count($keywordResults),
+            'fused_count' => count($fusedResults),
+            'query' => $queryText
+        ]);
+
+        return $fusedResults;
+    }
+
+    /**
+     * Reciprocal Rank Fusion для объединения результатов поиска
+     */
+    private function reciprocalRankFusion(
+        array $vectorResults,
+        array $keywordResults,
+        int $limit,
+        int $k = 60
+    ): array {
+        $scores = [];
+
+        foreach ($vectorResults as $rank => $result) {
+            $chunkId = $result['id'];
+            $rrfScore = 1 / ($k + $rank + 1);
+
+            if (!isset($scores[$chunkId])) {
+                $scores[$chunkId] = [
+                    'chunk' => $result,
+                    'score' => 0,
+                    'vector_rank' => $rank + 1,
+                    'keyword_rank' => null
+                ];
+            }
+            $scores[$chunkId]['score'] += $rrfScore;
+        }
+
+        foreach ($keywordResults as $rank => $result) {
+            $chunkId = $result['id'];
+            $rrfScore = 1 / ($k + $rank + 1);
+
+            if (!isset($scores[$chunkId])) {
+                $scores[$chunkId] = [
+                    'chunk' => $result,
+                    'score' => 0,
+                    'vector_rank' => null,
+                    'keyword_rank' => $rank + 1
+                ];
+            } else {
+                $scores[$chunkId]['keyword_rank'] = $rank + 1;
+            }
+            $scores[$chunkId]['score'] += $rrfScore;
+        }
+
+        uasort($scores, function ($a, $b) {
+            return $b['score'] <=> $a['score'];
+        });
+
+        $results = [];
+        $count = 0;
+        foreach ($scores as $item) {
+            if ($count >= $limit) {
+                break;
+            }
+            $chunk = $item['chunk'];
+            $chunk['hybrid_score'] = $item['score'];
+            $chunk['vector_rank'] = $item['vector_rank'];
+            $chunk['keyword_rank'] = $item['keyword_rank'];
+            $results[] = $chunk;
+            $count++;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Подготовка запроса для PostgreSQL tsquery
+     */
+    private function prepareTsQuery(string $query): string
+    {
+        $words = preg_split('/\s+/', mb_strtolower($query), -1, PREG_SPLIT_NO_EMPTY);
+
+        if (empty($words)) {
+            return '';
+        }
+
+        $stopWords = ['в', 'на', 'и', 'с', 'по', 'для', 'от', 'до', 'из', 'к', 'о', 'у'];
+
+        $cleanWords = array_map(function ($word) use ($stopWords) {
+            $word = preg_replace('/[^а-яёa-z0-9]/u', '', $word);
+
+            if (!$word || mb_strlen($word) < 3 || in_array($word, $stopWords)) {
+                return null;
+            }
+
+            return $word . ':*';
+        }, $words);
+
+        $cleanWords = array_filter($cleanWords);
+
+        if (empty($cleanWords)) {
+            return '';
+        }
+
+        return implode(' | ', $cleanWords);
     }
 }

@@ -16,9 +16,9 @@ RUN apt-get update && apt-get install -y \
     && pecl install redis amqp \
     && docker-php-ext-enable redis amqp
 
-RUN echo "max_execution_time = 120" >> /usr/local/etc/php/conf.d/llm.ini && \
+RUN echo "max_execution_time = 0" >> /usr/local/etc/php/conf.d/llm.ini && \
     echo "memory_limit = 512M" >> /usr/local/etc/php/conf.d/llm.ini && \
-    echo "default_socket_timeout = 120" >> /usr/local/etc/php/conf.d/llm.ini
+    echo "default_socket_timeout = 600" >> /usr/local/etc/php/conf.d/llm.ini
 
 WORKDIR /app
 

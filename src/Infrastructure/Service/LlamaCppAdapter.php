@@ -20,7 +20,12 @@ class LlamaCppAdapter
         private ?Logger $logger = null,
         private array $config = []
     ) {
-        $this->httpClient ??= new Client(['timeout' => 60]);
+        $this->httpClient ??= new Client([
+            'timeout' => 300,        // Общий timeout для всех запросов (5 минут)
+            'connect_timeout' => 10, // Timeout на подключение (10 секунд)
+            'force_ip_resolve' => 'v4', // Использовать только IPv4
+            'http_errors' => false,   // Не бросать исключения на HTTP ошибки
+        ]);
         $this->logger ??= new Logger('llm-adapter');
         $this->llamaCppUrl = $this->config['llm']['service_url'];
         $logPath = $this->config['storage']['log_path'];
@@ -210,14 +215,15 @@ class LlamaCppAdapter
     /**
      * Генерирует ответ от языковой модели на основе промпта.
      * Метод отправляет промпт на сервер llama.cpp и получает ответ от языковой модели.
-     * Промпт форматируется в соответствии с требованиями модели TinyLlama.
+     * Промпт форматируется в соответствии с требованиями модели.
      *
      * Параметры генерации:
-     * - n_predict: 256 токенов (~200 слов) - оптимальная длина для RAG ответов
-     * - temperature: 0.1 - низкая креативность для точных ответов
-     * - top_k: 10 - ограничение выбора для стабильности
-     * - top_p: 0.3 - ядерная выборка для качества
+     * - n_predict: 200 токенов (~150 слов) - баланс скорости и полноты ответа
+     * - temperature: 0.3 - баланс точности и естественности
+     * - top_k: 40 - разнообразие ответов
+     * - top_p: 0.5 - nucleus sampling для качества
      * - repeat_penalty: 1.1 - предотвращение повторов
+     * - timeout: 90 секунд - максимальное время ожидания
      */
     public function generateCompletion(string $prompt): string
     {
@@ -230,27 +236,68 @@ class LlamaCppAdapter
 
         $formattedPrompt = "<|user|>\n{$prompt}\n<|assistant|>\n";
 
+        $this->logger->info('Sending completion request to LLM', [
+            'prompt_length' => strlen($formattedPrompt),
+            'llm_url' => $this->llamaCppUrl . '/completion'
+        ]);
+
         try {
+            $startTime = microtime(true);
+            
             $response = $this->httpClient->post($this->llamaCppUrl . '/completion', [
                 'json' => [
                     'prompt' => $formattedPrompt,
-                    'n_predict' => 256,
+                    'n_predict' => 180,      // Увеличено со 130 до 180 для более полных ответов
                     'temperature' => 0.1,
-                    'top_k' => 10,
+                    'top_k' => 15,
                     'top_p' => 0.3,
-                    'repeat_penalty' => 1.1,
-                    'stop' => ["<|user|>", "<|assistant|>", "<|system|>"]
+                    'repeat_penalty' => 1.25,
+                    'stop' => ["<|user|>", "<|assistant|>", "<|system|>", "\n\n\n"]
                 ],
-                'timeout' => 90
+                'timeout' => 0,           // Отключаем общий timeout
+                'connect_timeout' => 10,  // Только timeout на подключение
+                'stream' => false,        // Отключаем streaming
+                'verify' => false         // Отключаем проверку SSL
             ]);
+            
+            $elapsedTime = round(microtime(true) - $startTime, 2);
+            $this->logger->info('LLM request completed', ['elapsed_time' => $elapsedTime]);
 
             if ($response->getStatusCode() === 200) {
-                $data = json_decode($response->getBody()->getContents(), true);
+                $rawBody = $response->getBody()->getContents();
+                
+                $this->logger->info('LLM raw response received', [
+                    'body_length' => strlen($rawBody),
+                    'body_preview' => mb_substr($rawBody, 0, 200)
+                ]);
+                
+                $data = json_decode($rawBody, true);
+                
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $this->logger->error('JSON decode error', [
+                        'error' => json_last_error_msg(),
+                        'raw_body' => $rawBody
+                    ]);
+                    throw new \RuntimeException('Failed to decode LLM response: ' . json_last_error_msg());
+                }
+                
                 $content = $data['content'] ?? 'Не удалось получить ответ от модели.';
 
                 $content = trim($content);
 
+                // Удаляем служебные токены модели
                 $content = preg_replace('/<\|[^|]*\|>/', '', $content);
+
+                // Удаляем китайские символы и фразы
+                // Удаляем целые китайские предложения (любые последовательности китайских символов)
+                $content = preg_replace('/[\x{4E00}-\x{9FFF}\x{3400}-\x{4DBF}\x{20000}-\x{2A6DF}]+[^а-яА-ЯёЁa-zA-Z0-9\s]*[\x{4E00}-\x{9FFF}\x{3400}-\x{4DBF}\x{20000}-\x{2A6DF}\s\-:：。，、]*/u', '', $content);
+                
+                // Удаляем оставшиеся одиночные китайские символы
+                $content = preg_replace('/[\x{4E00}-\x{9FFF}\x{3400}-\x{4DBF}\x{20000}-\x{2A6DF}]/u', '', $content);
+                
+                // Удаляем артефакты (пустые блоки кода, лишние пробелы)
+                $content = preg_replace('/```\s*```/u', '', $content);
+                $content = preg_replace('/\s{3,}/u', ' ', $content);
 
                 return trim($content);
             }
@@ -258,8 +305,19 @@ class LlamaCppAdapter
             $this->logger->warning('Completion generation failed', ['status' => $response->getStatusCode()]);
             return 'Произошла ошибка при генерации ответа.';
         } catch (RequestException $e) {
-            $this->logger->error('Error generating completion', ['error' => $e->getMessage()]);
-            return 'Произошла ошибка при обращении к модели.';
+            $this->logger->error('Error generating completion (RequestException)', [
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return 'Произошла ошибка при обращении к модели: ' . $e->getMessage();
+        } catch (\Exception $e) {
+            $this->logger->error('Error generating completion (Exception)', [
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return 'Произошла непредвиденная ошибка: ' . $e->getMessage();
         }
     }
 

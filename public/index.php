@@ -41,7 +41,7 @@ file_put_contents(
 );
 
 // Check if this is an API request
-if (str_starts_with($requestPath, '/api/') || $requestPath === '/health') {
+if (str_starts_with($requestPath, '/api/') || str_starts_with($requestPath, '/health')) {
     $container = new Container();
     ServiceProvider::register($container);
 

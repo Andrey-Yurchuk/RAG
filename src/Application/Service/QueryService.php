@@ -44,11 +44,14 @@ class QueryService
             $queryEmbedding = $this->embeddingService->generateEmbedding($queryText);
             $query->setQueryEmbedding($queryEmbedding);
 
-            // Поиск релевантных чанков (фрагментов) документов
-            $relevantChunks = $this->documentRepository->searchSimilarChunks(
+            // Гибридный поиск релевантных чанков (Vector + BM25 + RRF)
+            $relevantChunks = $this->documentRepository->searchHybrid(
+                $queryText,
                 $queryEmbedding,
                 $this->config['vector_search']['limit'],
-                $this->config['vector_search']['similarity_threshold']
+                $this->config['vector_search']['similarity_threshold'],
+                $this->config['hybrid_search']['vector_top_k'] ?? 20,
+                $this->config['hybrid_search']['keyword_top_k'] ?? 20
             );
 
             // Генерация ответа с помощью LLM

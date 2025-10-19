@@ -20,7 +20,13 @@ return [
 
     'vector_search' => [
         'limit' => (int)($_ENV['VECTOR_SEARCH_LIMIT'] ?? 5),
-        'similarity_threshold' => (float)($_ENV['VECTOR_SEARCH_THRESHOLD'] ?? 0.001),
+        'similarity_threshold' => (float)($_ENV['VECTOR_SEARCH_THRESHOLD'] ?? 0.3),
+    ],
+
+    'hybrid_search' => [
+        'vector_top_k' => (int)($_ENV['HYBRID_SEARCH_VECTOR_TOP_K'] ?? 10),
+        'keyword_top_k' => (int)($_ENV['HYBRID_SEARCH_KEYWORD_TOP_K'] ?? 10),
+        'rrf_k' => (int)($_ENV['HYBRID_SEARCH_RRF_K'] ?? 60),
     ],
 
     'storage' => [
