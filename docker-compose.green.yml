@@ -7,6 +7,8 @@ services:
     ports:
       - "${GREEN_PORT:-8081}:80"
       - "${GREEN_HTTPS_PORT:-8441}:443"
+    env_file:
+      - .env.production
     volumes:
       - ./src:/app/src
       - ./config:/app/config
@@ -65,6 +67,8 @@ services:
     container_name: rag-postgres-green
     ports:
       - "${DB_EXTERNAL_PORT:-5434}:5432"
+    env_file:
+      - .env.production
     environment:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}
@@ -85,6 +89,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: rag-redis-green
+    env_file:
+      - .env.production
     volumes:
       - redis_data_green:/data
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
@@ -101,6 +107,8 @@ services:
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: rag-rabbitmq-green
+    env_file:
+      - .env.production
     ports:
       - "${RABBITMQ_MANAGEMENT_PORT:-15673}:15672"
       - "${RABBITMQ_AMQP_PORT:-5673}:5672"
@@ -122,6 +130,8 @@ services:
   llm-service:
     image: ghcr.io/ggerganov/llama.cpp:server
     container_name: rag-llm-green
+    env_file:
+      - .env.production
     volumes:
       - ./models:/models
     environment:
@@ -141,6 +151,8 @@ services:
       context: .
       dockerfile: docker/frankenphp/Dockerfile
     container_name: rag-worker-green
+    env_file:
+      - .env.production
     volumes:
       - ./src:/app/src
       - ./config:/app/config
