@@ -1,0 +1,11 @@
+services:
+  nginx-lb:
+    image: nginx:stable-alpine
+    container_name: nginx-lb-rag
+    ports:
+      - "${LB_PORT:-8082}:80"
+    volumes:
+      - ./docker/nginx/nginx-lb.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

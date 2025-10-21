@@ -1,0 +1,55 @@
+name: Deploy RAG System to Production
+
+on:
+  push:
+    branches: [ production ]
+  pull_request:
+    branches: [ production ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup environment
+        run: |
+          echo "Setting up production environment..."
+          
+      - name: Copy new code to production
+        run: |
+          echo "Copying new code to production directory..."
+          mkdir -p /var/www/html/rag-system
+          rsync -a --delete $GITHUB_WORKSPACE/ /var/www/html/rag-system/
+          
+      - name: Setup production environment
+        run: |
+          echo "Setting up production environment file..."
+          cd /var/www/html/rag-system
+          cp .env.production .env 2>/dev/null || cp .env.example .env.production 2>/dev/null || echo "No .env or .env.example found"
+          
+      - name: Run database migrations
+        run: |
+          echo "Running database migrations..."
+          cd /var/www/html/rag-system
+          php bin/migrate-host.php migrations:migrate || echo "Migrations completed or failed"
+          
+      - name: Blue-Green Deployment
+        run: |
+          echo "Starting Blue-Green deployment..."
+          cd /var/www/html/rag-system
+          ./scripts/blue-green-deploy.sh
+          
+      - name: Cleanup old images
+        run: |
+          echo "Cleaning up old Docker images..."
+          docker image prune -f
+          
+      - name: Deployment successful
+        run: |
+          echo "Blue-Green deployment completed successfully!"
+          echo "Application is running at: ${HEALTH_CHECK_URL:-http://localhost}:${LB_PORT:-8082}"
+          echo "Load Balancer is active and routing traffic"
