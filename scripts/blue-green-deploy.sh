@@ -50,6 +50,12 @@ backup_gitignored_files() {
         print_status "Backed up .env.production"
     fi
     
+    # Backup vendor directory
+    if [ -d "vendor" ]; then
+        cp -r vendor /tmp/rag-backup/
+        print_status "Backed up vendor directory"
+    fi
+    
     # Backup any other important files
     if [ -f ".env" ]; then
         cp .env /tmp/rag-backup/
@@ -65,6 +71,12 @@ restore_gitignored_files() {
     if [ -f "/tmp/rag-backup/.env.production" ]; then
         cp /tmp/rag-backup/.env.production .
         print_status "Restored .env.production"
+    fi
+    
+    # Restore vendor directory
+    if [ -d "/tmp/rag-backup/vendor" ]; then
+        cp -r /tmp/rag-backup/vendor .
+        print_status "Restored vendor directory"
     fi
     
     # Restore .env if needed
