@@ -20,6 +20,23 @@ HEALTH_CHECK_URL=${HEALTH_CHECK_URL:-"http://localhost"}
 MAX_HEALTH_CHECK_ATTEMPTS=30
 HEALTH_CHECK_INTERVAL=2
 
+# Function to print colored output
+print_status() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
 # Function to backup and restore gitignored files
 backup_gitignored_files() {
     print_status "Backing up gitignored files..."
@@ -31,12 +48,6 @@ backup_gitignored_files() {
     if [ -f ".env.production" ]; then
         cp .env.production /tmp/rag-backup/
         print_status "Backed up .env.production"
-    fi
-    
-    # Backup model files
-    if [ -d "models" ] && [ "$(ls -A models/*.gguf 2>/dev/null)" ]; then
-        cp models/*.gguf /tmp/rag-backup/ 2>/dev/null || true
-        print_status "Backed up model files"
     fi
     
     # Backup any other important files
@@ -54,13 +65,6 @@ restore_gitignored_files() {
     if [ -f "/tmp/rag-backup/.env.production" ]; then
         cp /tmp/rag-backup/.env.production .
         print_status "Restored .env.production"
-    fi
-    
-    # Restore model files
-    if [ -d "/tmp/rag-backup" ] && [ "$(ls -A /tmp/rag-backup/*.gguf 2>/dev/null)" ]; then
-        mkdir -p models
-        cp /tmp/rag-backup/*.gguf models/ 2>/dev/null || true
-        print_status "Restored model files"
     fi
     
     # Restore .env if needed
@@ -84,18 +88,6 @@ update_code_from_git() {
     restore_gitignored_files
     
     print_success "Code updated successfully!"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
 }
 
 # Function to check if a port is active

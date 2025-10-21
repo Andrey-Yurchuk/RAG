@@ -93,7 +93,7 @@ services:
       - .env.production
     volumes:
       - redis_data_blue:/data
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
     networks:
       - rag-network-blue
     restart: unless-stopped
@@ -133,15 +133,15 @@ services:
     env_file:
       - .env.production
     volumes:
-      - ./models:/models
+      - /var/www/html/models:/models
     environment:
       - MODEL=${LLM_MODEL_PATH:-/models/qwen2.5-7b-instruct-q4_k_m.gguf}
     command: >
-      -m ${LLM_MODEL_PATH:-/models/qwen2.5-7b-instruct-q4_k_m.gguf}
+      -m "${LLM_MODEL_PATH:-/models/qwen2.5-7b-instruct-q4_k_m.gguf}"
       --host 0.0.0.0
       --port 8080
-      -c ${LLM_CONTEXT_SIZE:-4096}
-      -np ${LLM_CPU_CORES:-2}
+      -c "${LLM_CONTEXT_SIZE:-4096}"
+      -np "${LLM_CPU_CORES:-2}"
     restart: unless-stopped
     networks:
       - rag-network-blue
