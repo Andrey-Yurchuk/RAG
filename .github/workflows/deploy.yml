@@ -25,6 +25,12 @@ jobs:
           mkdir -p /var/www/html/rag-system
           rsync -a --delete $GITHUB_WORKSPACE/ /var/www/html/rag-system/
           
+      - name: Update code from git repository
+        run: |
+          echo "Updating code from git repository..."
+          cd /var/www/html/rag-system
+          ./scripts/blue-green-deploy.sh update_code_from_git
+          
       - name: Setup production environment
         run: |
           echo "Setting up production environment file..."

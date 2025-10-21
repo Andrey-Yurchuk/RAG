@@ -20,9 +20,70 @@ HEALTH_CHECK_URL=${HEALTH_CHECK_URL:-"http://localhost"}
 MAX_HEALTH_CHECK_ATTEMPTS=30
 HEALTH_CHECK_INTERVAL=2
 
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+# Function to backup and restore gitignored files
+backup_gitignored_files() {
+    print_status "Backing up gitignored files..."
+    
+    # Create backup directory
+    mkdir -p /tmp/rag-backup
+    
+    # Backup .env.production
+    if [ -f ".env.production" ]; then
+        cp .env.production /tmp/rag-backup/
+        print_status "Backed up .env.production"
+    fi
+    
+    # Backup model files
+    if [ -d "models" ] && [ "$(ls -A models/*.gguf 2>/dev/null)" ]; then
+        cp models/*.gguf /tmp/rag-backup/ 2>/dev/null || true
+        print_status "Backed up model files"
+    fi
+    
+    # Backup any other important files
+    if [ -f ".env" ]; then
+        cp .env /tmp/rag-backup/
+        print_status "Backed up .env"
+    fi
+}
+
+# Function to restore gitignored files
+restore_gitignored_files() {
+    print_status "Restoring gitignored files..."
+    
+    # Restore .env.production
+    if [ -f "/tmp/rag-backup/.env.production" ]; then
+        cp /tmp/rag-backup/.env.production .
+        print_status "Restored .env.production"
+    fi
+    
+    # Restore model files
+    if [ -d "/tmp/rag-backup" ] && [ "$(ls -A /tmp/rag-backup/*.gguf 2>/dev/null)" ]; then
+        mkdir -p models
+        cp /tmp/rag-backup/*.gguf models/ 2>/dev/null || true
+        print_status "Restored model files"
+    fi
+    
+    # Restore .env if needed
+    if [ -f "/tmp/rag-backup/.env" ] && [ ! -f ".env" ]; then
+        cp /tmp/rag-backup/.env .
+        print_status "Restored .env"
+    fi
+}
+
+# Function to update code from git
+update_code_from_git() {
+    print_status "Updating code from git repository..."
+    
+    # Backup files before git pull
+    backup_gitignored_files
+    
+    # Pull latest changes
+    git pull origin production
+    
+    # Restore backed up files
+    restore_gitignored_files
+    
+    print_success "Code updated successfully!"
 }
 
 print_success() {
@@ -158,7 +219,22 @@ cleanup_old_environment() {
 
 # Main deployment logic
 main() {
-    print_status "Starting Blue-Green deployment..."
+    local action=${1:-"deploy"}
+    
+    case $action in
+        "update_code_from_git")
+            update_code_from_git
+            return 0
+            ;;
+        "deploy")
+            print_status "Starting Blue-Green deployment..."
+            ;;
+        *)
+            print_error "Unknown action: $action"
+            print_status "Available actions: deploy, update_code_from_git"
+            exit 1
+            ;;
+    esac
     
     if [ ! -f "docker-compose.blue.yml" ] || [ ! -f "docker-compose.green.yml" ]; then
         print_error "Blue-Green compose files not found. Please run this script from the project root."
