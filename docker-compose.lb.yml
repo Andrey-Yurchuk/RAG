@@ -7,7 +7,7 @@ services:
     env_file:
       - .env.production
     volumes:
-      - ./docker/nginx/nginx-lb.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+      - ./docker/nginx/nginx-lb.conf.template:/etc/nginx/templates/default.conf.template:ro
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
