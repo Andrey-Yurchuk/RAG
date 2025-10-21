@@ -70,7 +70,7 @@ switch_to_environment() {
         return 1
     fi
     
-    sed -i "s/server host\.docker\.internal:\${[A-Z_]*:-[0-9]*};/server host.docker.internal:$port;/" docker/nginx/nginx-lb.conf
+    sed -i "s/server host\.docker\.internal:[0-9]*;/server host.docker.internal:$port;/" docker/nginx/nginx-lb.conf.template
     
     docker compose -f docker-compose.lb.yml restart nginx-lb
     

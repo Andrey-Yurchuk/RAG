@@ -190,7 +190,7 @@ switch_traffic() {
     
     print_status "Switching traffic to $target_env environment (port $port)..."
     
-    sed -i "s/server host\.docker\.internal:\${[A-Z_]*:-[0-9]*};/server host.docker.internal:$port;/" docker/nginx/nginx-lb.conf.template
+    sed -i "s/server host\.docker\.internal:[0-9]*;/server host.docker.internal:$port;/" docker/nginx/nginx-lb.conf.template
     
     docker compose -f docker-compose.lb.yml restart nginx-lb
     
