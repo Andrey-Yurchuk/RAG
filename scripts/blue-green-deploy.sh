@@ -40,23 +40,19 @@ print_error() {
 # Function to backup and restore gitignored files
 backup_gitignored_files() {
     print_status "Backing up gitignored files..."
-    
-    # Create backup directory
+
     mkdir -p /tmp/rag-backup
-    
-    # Backup .env.production
+
     if [ -f ".env.production" ]; then
         cp .env.production /tmp/rag-backup/
         print_status "Backed up .env.production"
     fi
-    
-    # Backup vendor directory
+
     if [ -d "vendor" ]; then
         cp -r vendor /tmp/rag-backup/
         print_status "Backed up vendor directory"
     fi
-    
-    # Backup any other important files
+
     if [ -f ".env" ]; then
         cp .env /tmp/rag-backup/
         print_status "Backed up .env"
@@ -66,20 +62,17 @@ backup_gitignored_files() {
 # Function to restore gitignored files
 restore_gitignored_files() {
     print_status "Restoring gitignored files..."
-    
-    # Restore .env.production
+
     if [ -f "/tmp/rag-backup/.env.production" ]; then
         cp /tmp/rag-backup/.env.production .
         print_status "Restored .env.production"
     fi
-    
-    # Restore vendor directory
+
     if [ -d "/tmp/rag-backup/vendor" ]; then
         cp -r /tmp/rag-backup/vendor .
         print_status "Restored vendor directory"
     fi
-    
-    # Restore .env if needed
+
     if [ -f "/tmp/rag-backup/.env" ] && [ ! -f ".env" ]; then
         cp /tmp/rag-backup/.env .
         print_status "Restored .env"
@@ -89,14 +82,11 @@ restore_gitignored_files() {
 # Function to update code from git
 update_code_from_git() {
     print_status "Updating code from git repository..."
-    
-    # Backup files before git pull
+
     backup_gitignored_files
-    
-    # Pull latest changes
+
     git pull origin production
-    
-    # Restore backed up files
+
     restore_gitignored_files
     
     print_success "Code updated successfully!"
@@ -162,7 +152,7 @@ deploy_to_environment() {
     print_status "Deploying to $environment environment..."
     
     print_status "Stopping existing $environment containers..."
-    docker compose -f $compose_file down --remove-orphans || true
+    docker compose -f $compose_file down || true
     
     print_status "Pulling latest images..."
     docker compose -f $compose_file pull || true
@@ -200,11 +190,27 @@ switch_traffic() {
     
     print_status "Switching traffic to $target_env environment (port $port)..."
     
-    sed -i "s/server host\.docker\.internal:\${[A-Z_]*:-[0-9]*};/server host.docker.internal:$port;/" docker/nginx/nginx-lb.conf
+    sed -i "s/server host\.docker\.internal:\${[A-Z_]*:-[0-9]*};/server host.docker.internal:$port;/" docker/nginx/nginx-lb.conf.template
     
     docker compose -f docker-compose.lb.yml restart nginx-lb
     
     print_success "Traffic switched to $target_env environment!"
+}
+
+# Function to ensure Load Balancer is running
+ensure_load_balancer() {
+    print_status "Ensuring Load Balancer is running..."
+
+    print_status "Starting Load Balancer..."
+    docker compose -f docker-compose.lb.yml up -d
+    sleep 3
+
+    if docker ps --format "table {{.Names}}" | grep -q "nginx-lb-rag"; then
+        print_success "Load Balancer is running!"
+    else
+        print_error "Failed to start Load Balancer!"
+        return 1
+    fi
 }
 
 # Function to cleanup old environment
@@ -213,7 +219,9 @@ cleanup_old_environment() {
     local compose_file="docker-compose.$old_env.yml"
     
     print_status "Cleaning up old $old_env environment..."
-    docker compose -f $compose_file down --remove-orphans || true
+    # Stop containers with specific naming pattern, excluding Load Balancer
+    docker stop $(docker ps -q --filter "name=rag-.*-$old_env") 2>/dev/null | grep -v "nginx-lb-rag" | xargs -r docker stop 2>/dev/null || true
+    docker rm $(docker ps -aq --filter "name=rag-.*-$old_env") 2>/dev/null | grep -v "nginx-lb-rag" | xargs -r docker rm 2>/dev/null || true
     
     print_status "Cleaning up old Docker images..."
     docker image prune -f || true
@@ -252,6 +260,7 @@ main() {
     print_status "Target environment: $target_env"
     
     if deploy_to_environment $target_env; then
+        ensure_load_balancer
         switch_traffic $target_env
         
         print_status "Waiting 10 seconds before cleanup..."
