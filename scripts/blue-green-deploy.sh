@@ -190,11 +190,27 @@ switch_traffic() {
     
     print_status "Switching traffic to $target_env environment (port $port)..."
     
-    sed -i "s/server host\.docker\.internal:[0-9]*;/server host.docker.internal:$port;/" docker/nginx/nginx-lb.conf.template
+    sed -i "s/server host\.docker\.internal:\${BLUE_PORT};/server host.docker.internal:$port;/" docker/nginx/nginx-lb.conf.template
     
     docker compose -f docker-compose.lb.yml restart nginx-lb
     
     print_success "Traffic switched to $target_env environment!"
+}
+
+# Function to ensure shared database is running
+ensure_shared_database() {
+    print_status "Ensuring shared database is running..."
+
+    print_status "Starting shared database..."
+    docker compose -f docker-compose.db.yml up -d
+    sleep 5
+
+    if docker ps --format "table {{.Names}}" | grep -q "rag-postgres-shared"; then
+        print_success "Shared database is running!"
+    else
+        print_error "Failed to start shared database!"
+        return 1
+    fi
 }
 
 # Function to ensure Load Balancer is running
@@ -260,6 +276,7 @@ main() {
     print_status "Target environment: $target_env"
     
     if deploy_to_environment $target_env; then
+        ensure_shared_database
         ensure_load_balancer
         switch_traffic $target_env
         
