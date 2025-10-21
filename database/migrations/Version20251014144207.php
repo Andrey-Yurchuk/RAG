@@ -21,8 +21,9 @@ final class Version20251014144207 extends AbstractMigration
     {
         // Create users table
         $usersTable = $schema->createTable('users');
-        $usersTable->addColumn('id', 'guid', [
-            'notnull' => true
+        $usersTable->addColumn('id', 'integer', [
+            'notnull' => true,
+            'autoincrement' => true
         ]);
         $usersTable->addColumn('username', 'string', [
             'length' => 255,
@@ -63,10 +64,11 @@ final class Version20251014144207 extends AbstractMigration
 
         // Create user_sessions table
         $sessionsTable = $schema->createTable('user_sessions');
-        $sessionsTable->addColumn('id', 'guid', [
-            'notnull' => true
+        $sessionsTable->addColumn('id', 'integer', [
+            'notnull' => true,
+            'autoincrement' => true
         ]);
-        $sessionsTable->addColumn('user_id', 'guid', [
+        $sessionsTable->addColumn('user_id', 'integer', [
             'notnull' => true
         ]);
         $sessionsTable->addColumn('session_token', 'string', [
