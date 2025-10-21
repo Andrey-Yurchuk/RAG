@@ -21,6 +21,7 @@ services:
       - ./phpstan.neon:/app/phpstan.neon
       - ./phpcs.xml:/app/phpcs.xml
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./.env:/app/.env
     environment:
       - SERVER_NAME=${SERVER_NAME:-localhost}
       - CADDY_GLOBAL_OPTIONS=${APP_DEBUG:-false}
