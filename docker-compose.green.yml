@@ -54,6 +54,7 @@ services:
       - llm-service
     networks:
       - rag-network-green
+      - rag-network-shared
     restart: unless-stopped
     deploy:
       resources:
@@ -190,6 +191,7 @@ services:
       - llm-service
     networks:
       - rag-network-green
+      - rag-network-shared
     restart: unless-stopped
     command: php bin/rag-worker.php
     healthcheck:
@@ -209,3 +211,5 @@ volumes:
 networks:
   rag-network-green:
     driver: bridge
+  rag-network-shared:
+    external: true
