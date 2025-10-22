@@ -28,4 +28,4 @@ volumes:
 
 networks:
   rag-system_rag-network-shared:
-    driver: bridge
+    external: true
