@@ -1,5 +1,6 @@
 upstream rag_backend {
-    server host.docker.internal:8081;
+    server host.docker.internal:${BLUE_PORT};
+    server host.docker.internal:${GREEN_PORT};
 }
 
 server {
