@@ -57,6 +57,8 @@ backup_gitignored_files() {
         cp .env /tmp/rag-backup/
         print_status "Backed up .env"
     fi
+
+    print_status "Excluding tests from backup (production deployment)"
 }
 
 # Function to restore gitignored files
@@ -79,6 +81,48 @@ restore_gitignored_files() {
     fi
 }
 
+# Function to remove tests from production
+remove_tests_from_production() {
+    print_status "Removing tests from production deployment..."
+
+    if [ -d "tests" ]; then
+        rm -rf tests/
+        print_status "Removed tests/ directory"
+    fi
+
+    if [ -f "phpunit.xml" ]; then
+        rm -f phpunit.xml
+        print_status "Removed phpunit.xml"
+    fi
+
+    if [ -f "phpunit.xml.dist" ]; then
+        rm -f phpunit.xml.dist
+        print_status "Removed phpunit.xml.dist"
+    fi
+
+    if [ -d "coverage" ]; then
+        rm -rf coverage/
+        print_status "Removed coverage/ directory"
+    fi
+
+    if [ -f "coverage.xml" ]; then
+        rm -f coverage.xml
+        print_status "Removed coverage.xml"
+    fi
+
+    if [ -f "coverage.clover" ]; then
+        rm -f coverage.clover
+        print_status "Removed coverage.clover"
+    fi
+
+    if [ -f ".phpunit.result.cache" ]; then
+        rm -f .phpunit.result.cache
+        print_status "Removed .phpunit.result.cache"
+    fi
+
+    print_success "Tests successfully excluded from production!"
+}
+
 # Function to update code from git
 update_code_from_git() {
     print_status "Updating code from git repository..."
@@ -86,6 +130,8 @@ update_code_from_git() {
     backup_gitignored_files
 
     git pull origin production
+
+    remove_tests_from_production
 
     restore_gitignored_files
     
@@ -144,12 +190,48 @@ wait_for_health() {
     return 1
 }
 
+# Function to verify no tests in production
+verify_no_tests_in_production() {
+    print_status "Verifying no tests in production deployment..."
+
+    local test_files_found=false
+
+    if [ -d "tests" ]; then
+        print_error "ERROR: tests/ directory found in production!"
+        test_files_found=true
+    fi
+
+    if [ -f "phpunit.xml" ]; then
+        print_error "ERROR: phpunit.xml found in production!"
+        test_files_found=true
+    fi
+
+    if [ -f "TESTING_PLAN.md" ]; then
+        print_error "ERROR: TESTING_PLAN.md found in production!"
+        test_files_found=true
+    fi
+
+    if [ "$test_files_found" = true ]; then
+        print_error "CRITICAL: Tests found in production deployment!"
+        print_error "This is a security risk. Aborting deployment."
+        return 1
+    fi
+
+    print_success "Production deployment verified - no tests found!"
+    return 0
+}
+
 # Function to deploy to specific environment
 deploy_to_environment() {
     local environment=$1
     local compose_file="docker-compose.$environment.yml"
     
     print_status "Deploying to $environment environment..."
+
+    if ! verify_no_tests_in_production; then
+        print_error "Deployment aborted due to test files in production!"
+        exit 1
+    fi
     
     print_status "Stopping existing $environment containers..."
     docker compose -f $compose_file down || true
