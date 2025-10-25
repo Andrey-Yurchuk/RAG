@@ -56,6 +56,23 @@ class Request
     }
 
     /**
+     * Создает новый Request с добавленными параметрами пути
+     */
+    public function withAddedPathParams(array $pathParams): self
+    {
+        $newRequest = new self(
+            $this->method,
+            $this->uri,
+            $this->headers,
+            $this->query,
+            $this->body,
+            $this->files,
+            $pathParams
+        );
+        return $newRequest;
+    }
+
+    /**
      * Получает HTTP метод запроса
      */
     public function getMethod(): string
@@ -185,7 +202,7 @@ class Request
     }
 
     /**
-     * Получает значение конкретного параметра пути
+     * Получает конкретный параметр пути
      */
     public function getPathParam(string $name): ?string
     {
