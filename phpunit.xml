@@ -7,21 +7,18 @@
     <testsuite name="Integration">
       <directory>tests/Integration</directory>
     </testsuite>
-    <testsuite name="Functional">
-      <directory>tests/Functional</directory>
-    </testsuite>
   </testsuites>
   <coverage>
     <report>
       <html outputDirectory="coverage"/>
       <clover outputFile="coverage.xml"/>
-      <text outputFile="coverage.txt"/>
     </report>
   </coverage>
   <php>
     <env name="APP_ENV" value="testing"/>
     <env name="LLAMA_CPP_URL" value="http://localhost:8080"/>
     <env name="RABBITMQ_HOST" value="localhost"/>
+    <ini name="xdebug.mode" value="coverage"/>
   </php>
   <source>
     <include>
