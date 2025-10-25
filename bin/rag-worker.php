@@ -13,6 +13,7 @@ use RagSystem\Domain\Repository\DocumentRepositoryInterface;
 use RagSystem\Domain\Model\DocumentChunk;
 use Ramsey\Uuid\Uuid;
 use Psr\Log\LoggerInterface;
+use ReflectionClass;
 
 
 if (file_exists(__DIR__ . '/../.env')) {
@@ -100,7 +101,25 @@ $documentCallback = function (array $message) use (
             throw new Exception("Document not found: {$documentId}");
         }
 
+        $originalFilePath = $document->getFilePath();
+        $originalFileType = $document->getFileType();
+
         $document->updateContent($content);
+
+        if ($originalFilePath && !$document->getFilePath()) {
+            $reflection = new ReflectionClass($document);
+            $filePathProperty = $reflection->getProperty('filePath');
+            $filePathProperty->setAccessible(true);
+            $filePathProperty->setValue($document, $originalFilePath);
+        }
+        
+        if ($originalFileType && !$document->getFileType()) {
+            $reflection = new ReflectionClass($document);
+            $fileTypeProperty = $reflection->getProperty('fileType');
+            $fileTypeProperty->setAccessible(true);
+            $fileTypeProperty->setValue($document, $originalFileType);
+        }
+        
         $documentRepository->save($document);
 
         $chunks = $textProcessingService->chunkText($content);

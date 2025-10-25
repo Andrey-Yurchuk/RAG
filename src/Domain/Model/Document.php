@@ -33,8 +33,8 @@ final class Document
         $document = new self(
             $data['title'],
             $data['content'],
-            $data['filePath'] ?? null,
-            $data['fileType'] ?? null,
+            $data['file_path'] ?? null,
+            $data['file_type'] ?? null,
         );
 
         if (isset($data['id'])) {
