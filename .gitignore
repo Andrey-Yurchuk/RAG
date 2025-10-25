@@ -25,6 +25,7 @@
 
 # Docker
 docker-compose.override.yml
+docker/nginx/nginx-lb.conf.template
 
 # IDE files
 .vscode/
