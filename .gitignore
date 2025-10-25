@@ -45,7 +45,11 @@ Thumbs.db
 
 # Testing
 coverage/
+coverage.xml
+coverage_query/
+.phpunit.cache/
 .phpunit.result.cache
+phpunit.xml.bak
 
 # Temporary files
 *.tmp
