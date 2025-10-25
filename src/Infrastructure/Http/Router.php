@@ -142,7 +142,7 @@ class Router
                 }
             }
 
-            $requestWithParams = Request::withPathParams($pathParams);
+            $requestWithParams = $request->withAddedPathParams($pathParams);
 
             if (is_array($handler)) {
                 [$class, $method] = $handler;

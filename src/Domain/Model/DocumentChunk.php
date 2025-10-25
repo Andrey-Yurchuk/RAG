@@ -32,7 +32,7 @@ final class DocumentChunk
             $data['embedding'] ?? null,
         );
 
-        if ($data['id']) {
+        if (isset($data['id']) && $data['id']) {
             $chunk->id = Uuid::fromString($data['id']);
         }
 
