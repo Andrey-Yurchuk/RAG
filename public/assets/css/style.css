@@ -30,8 +30,9 @@ body {
 }
 
 .header-content h1 {
-    font-size: 2.5rem;
+    font-size: 3.0rem;
     margin-bottom: 0.5rem;
+    padding-right: 4rem;
 }
 
 .header-content p {
@@ -545,6 +546,7 @@ body {
 
     .header-content h1 {
         font-size: 2rem;
+        padding-right: 0;
     }
 }
 
@@ -690,7 +692,7 @@ button:focus-visible, .btn:focus-visible {
 
 .login-header h1 {
     color: #667eea;
-    font-size: 2rem;
+    font-size: 2.3rem;
     margin-bottom: 0.5rem;
 }
 
