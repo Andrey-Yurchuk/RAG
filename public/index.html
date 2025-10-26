@@ -198,6 +198,27 @@
     </div>
 </div>
 
+<!-- Modal for Delete Confirmation -->
+<div class="modal" id="deleteModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-exclamation-triangle"></i> Подтверждение удаления</h3>
+        </div>
+        <div class="modal-body">
+            <p>Вы уверены, что хотите удалить этот документ?</p>
+            <p class="modal-warning">Это действие нельзя отменить.</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancelDeleteBtn">
+                <i class="fas fa-times"></i> Отмена
+            </button>
+            <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                <i class="fas fa-trash"></i> Удалить
+            </button>
+        </div>
+    </div>
+</div>
+
 <script src="assets/js/app.js"></script>
 </body>
 </html>
