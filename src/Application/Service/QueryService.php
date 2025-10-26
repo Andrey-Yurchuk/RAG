@@ -131,6 +131,14 @@ class QueryService
     }
 
     /**
+     * Получает общее количество запросов в бд
+     */
+    public function getTotalQueriesCount(): int
+    {
+        return $this->queryRepository->count();
+    }
+
+    /**
      * Поиск похожих запросов в истории
      *
      * @param string $queryText Текстовый запрос для поиска
