@@ -1,6 +1,6 @@
 # RAG System - система поиска по документам с искусственным интеллектом
 
-<img src="public/rag_php.png" alt="RAG System" width="600" />
+<img src="public/rag_php.png" alt="RAG System" width="850" />
 
 ## Описание
 
