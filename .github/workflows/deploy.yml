@@ -28,4 +28,3 @@ jobs:
       - name: Deployment successful
         run: |
           echo "Blue-Green deployment completed successfully!"
-          echo "Application is running at: http://212.67.14.54:8082"
