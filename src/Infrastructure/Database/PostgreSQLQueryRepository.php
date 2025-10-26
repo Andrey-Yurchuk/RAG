@@ -18,7 +18,7 @@ class PostgreSQLQueryRepository implements QueryRepositoryInterface
     }
 
     /**
-     * Сохраняет или обновляет запрос в базе данных PostgreSQL
+     * {@inheritdoc}
      */
     public function save(Query $query): void
     {
@@ -47,7 +47,7 @@ class PostgreSQLQueryRepository implements QueryRepositoryInterface
     }
 
     /**
-     * Находит запрос по его идентификатору
+     * {@inheritdoc}
      */
     public function findById(UuidInterface $id): ?Query
     {
@@ -67,7 +67,7 @@ class PostgreSQLQueryRepository implements QueryRepositoryInterface
     }
 
     /**
-     * Находит все запросы
+     * {@inheritdoc}
      */
     public function findAll(int $limit = 10, int $offset = 0): array
     {
@@ -91,7 +91,7 @@ class PostgreSQLQueryRepository implements QueryRepositoryInterface
     }
 
     /**
-     * Находит похожие запросы по векторному сходству
+     * {@inheritdoc}
      */
     public function findSimilarQueries(array $queryEmbedding, int $limit = 5, float $threshold = 0.9): array
     {
@@ -134,7 +134,7 @@ class PostgreSQLQueryRepository implements QueryRepositoryInterface
     }
 
     /**
-     * Удаляет запрос по его id
+     * {@inheritdoc}
      */
     public function delete(UuidInterface $id): bool
     {
