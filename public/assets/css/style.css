@@ -88,6 +88,7 @@ body {
     color: #666;
     transition: all 0.3s ease;
     white-space: nowrap;
+    outline: none;
 }
 
 .nav-tab:hover {
@@ -176,6 +177,7 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    outline: none;
 }
 
 .btn-primary {
@@ -594,8 +596,16 @@ button, .btn {
     transition: all 0.2s ease;
 }
 
-/* Focus states for accessibility */
-button:focus, .btn:focus, input:focus, textarea:focus {
+input:focus, textarea:focus {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+button:focus, .btn:focus {
+    outline: none;
+}
+
+button:focus-visible, .btn:focus-visible {
     outline: 2px solid #667eea;
     outline-offset: 2px;
 }
