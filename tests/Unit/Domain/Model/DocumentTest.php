@@ -65,8 +65,8 @@ class DocumentTest extends BaseTestCase
             'id' => '550e8400-e29b-41d4-a716-446655440000',
             'title' => 'Документ из массива',
             'content' => 'Содержимое из массива',
-            'filePath' => '/test/array/document.txt',
-            'fileType' => 'txt',
+            'file_path' => '/test/array/document.txt',
+            'file_type' => 'txt',
             'createdAt' => '2025-01-17 10:00:00',
             'updatedAt' => '2025-01-17 11:00:00',
         ]);
