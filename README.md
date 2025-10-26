@@ -32,7 +32,7 @@ RAG (Retrieval-Augmented Generation) System - это система поиска
 ### LLM и обработка документов
 - **[llama.cpp](https://github.com/ggerganov/llama.cpp)** - LLM сервер
 - **[Qwen 2.5 7B Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct)** - мультиязычная языковая модель (можно использовать любую мультиязычную или русскоязычную модель)
-- **Hybrid Search** - комбинация векторного поиска ([косинусное подобие](https://ichi.pro/ru/ponimanie-kosinusnogo-podobia-i-ego-primenenia-278464028813674)) и полнотекстового поиска ([BM25](https://ru.wikipedia.org/wiki/Okapi_BM25))
+- **Hybrid Search** - комбинация векторного поиска [косинусное подобие](https://ichi.pro/ru/ponimanie-kosinusnogo-podobia-i-ego-primenenia-278464028813674) и полнотекстового поиска [BM25](https://ru.wikipedia.org/wiki/Okapi_BM25)
 
 ### Frontend
 - **HTML5, CSS3, JavaScript** - клиентское приложение
@@ -148,4 +148,4 @@ make fix-style
 
 ## Автор
 
-Andrey Yurchuk (a.yurchuk1430@gmail.com)
+Andrey Yurchuk a.yurchuk1430@gmail.com
