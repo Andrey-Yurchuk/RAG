@@ -486,29 +486,59 @@ class RAGApp {
     }
 
     async deleteDocument(id) {
-        if (!confirm('Вы уверены, что хотите удалить этот документ?')) {
-            return;
-        }
+        // Show modal instead of confirm dialog
+        const modal = document.getElementById('deleteModal');
+        const cancelBtn = document.getElementById('cancelDeleteBtn');
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        
+        // Show modal
+        modal.style.display = 'flex';
+        
+        // Create promise to handle user choice
+        return new Promise((resolve) => {
+            // One-time event handlers
+            const handleCancel = () => {
+                modal.style.display = 'none';
+                resolve(false);
+            };
+            
+            const handleConfirm = async () => {
+                modal.style.display = 'none';
+                
+                try {
+                    const response = await fetch(`${this.API_BASE}/api/v1/documents/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${this.sessionToken}`
+                        }
+                    });
 
-        try {
-            const response = await fetch(`${this.API_BASE}/api/v1/documents/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${this.sessionToken}`
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.showToast('Документ удален успешно!', 'success');
+                        this.loadDocuments();
+                        resolve(true);
+                    } else {
+                        throw new Error(data.message || 'Ошибка при удалении документа');
+                    }
+                } catch (error) {
+                    this.showToast(`Ошибка: ${error.message}`, 'error');
+                    resolve(false);
                 }
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.showToast('Документ удален успешно!', 'success');
-                this.loadDocuments();
-            } else {
-                throw new Error(data.message || 'Ошибка при удалении документа');
-            }
-        } catch (error) {
-            this.showToast(`Ошибка: ${error.message}`, 'error');
-        }
+            };
+            
+            const handleBackgroundClick = (e) => {
+                if (e.target === modal) {
+                    handleCancel();
+                }
+            };
+            
+            // Add one-time event listeners
+            cancelBtn.addEventListener('click', handleCancel, { once: true });
+            confirmBtn.addEventListener('click', handleConfirm, { once: true });
+            modal.addEventListener('click', handleBackgroundClick, { once: true });
+        });
     }
 
     // Text Document Upload
