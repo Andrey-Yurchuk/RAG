@@ -117,6 +117,7 @@ class QueryController
             $offset = (int) ($request->getQueryParam('offset') ?? 0);
 
             $queries = $this->queryService->getQueryHistory($limit, $offset);
+            $totalCount = $this->queryService->getTotalQueriesCount();
 
             $data = array_map(function ($query) {
                 return [
@@ -134,7 +135,9 @@ class QueryController
                 'pagination' => [
                     'limit' => $limit,
                     'offset' => $offset,
-                    'count' => count($data)
+                    'count' => count($data),
+                    'total' => $totalCount,
+                    'has_more' => ($offset + count($data)) < $totalCount
                 ]
             ]);
         } catch (Exception $e) {

@@ -149,4 +149,13 @@ class PostgreSQLQueryRepository implements QueryRepositoryInterface
 
         return $success;
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function count(): int
+    {
+        $sql = 'SELECT COUNT(*) FROM queries';
+        return (int) $this->connection->fetchOne($sql);
+    }
 }

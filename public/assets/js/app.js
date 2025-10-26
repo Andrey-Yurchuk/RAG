@@ -6,6 +6,10 @@ class RAGApp {
         this.sessionToken = null;
         this.currentUser = null;
         this.currentProcessingInterval = null;
+        // Pagination state
+        this.historyCurrentPage = 1;
+        this.historyPageSize = 10;
+        this.historyTotal = 0;
         this.init();
     }
 
@@ -226,6 +230,7 @@ class RAGApp {
         if (tabName === 'documents') {
             this.loadDocuments();
         } else if (tabName === 'history') {
+            this.historyCurrentPage = 1;
             this.loadHistory();
         }
     }
@@ -941,9 +946,10 @@ class RAGApp {
     // History Management
     async loadHistory() {
         const historyList = document.getElementById('historyList');
+        const offset = (this.historyCurrentPage - 1) * this.historyPageSize;
 
         try {
-            const response = await fetch(`${this.API_BASE}/api/v1/queries`, {
+            const response = await fetch(`${this.API_BASE}/api/v1/queries?limit=${this.historyPageSize}&offset=${offset}`, {
                 headers: {
                     'Authorization': `Bearer ${this.sessionToken}`
                 }
@@ -951,7 +957,9 @@ class RAGApp {
             const data = await response.json();
 
             if (data.success) {
+                this.historyTotal = data.pagination.total;
                 this.displayHistory(data.data);
+                this.updatePaginationControls(data.pagination);
             } else {
                 throw new Error(data.message || 'Ошибка при загрузке истории');
             }
@@ -963,6 +971,46 @@ class RAGApp {
                 </div>
             `;
         }
+    }
+
+    // Pagination methods
+    loadPreviousPage() {
+        if (this.historyCurrentPage > 1) {
+            this.historyCurrentPage--;
+            this.loadHistory();
+        }
+    }
+
+    loadNextPage() {
+        const totalPages = Math.ceil(this.historyTotal / this.historyPageSize);
+        if (this.historyCurrentPage < totalPages) {
+            this.historyCurrentPage++;
+            this.loadHistory();
+        }
+    }
+
+    updatePaginationControls(pagination) {
+        const paginationContainer = document.getElementById('paginationContainer');
+        const paginationInfo = document.getElementById('paginationInfo');
+        const prevBtn = document.getElementById('prevPageBtn');
+        const nextBtn = document.getElementById('nextPageBtn');
+
+        const totalPages = Math.ceil(this.historyTotal / this.historyPageSize);
+        const startItem = pagination.offset + 1;
+        const endItem = Math.min(pagination.offset + pagination.count, this.historyTotal);
+
+        paginationInfo.textContent = `Показано ${startItem}-${endItem} из ${this.historyTotal}`;
+
+        // Show pagination only if there's more than one page
+        if (totalPages > 1) {
+            paginationContainer.style.display = 'flex';
+        } else {
+            paginationContainer.style.display = 'none';
+        }
+
+        // Enable/disable buttons
+        prevBtn.disabled = this.historyCurrentPage === 1;
+        nextBtn.disabled = !pagination.has_more;
     }
 
     displayHistory(queries) {

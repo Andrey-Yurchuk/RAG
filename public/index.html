@@ -180,14 +180,26 @@
         <div class="tab-content" id="history">
             <div class="history-header">
                 <h2><i class="fas fa-history"></i> История запросов</h2>
-                <button class="btn btn-secondary" onclick="loadHistory()">
-                    <i class="fas fa-sync"></i> Обновить
-                </button>
             </div>
 
             <div class="history-list" id="historyList">
                 <div class="loading">
                     <i class="fas fa-spinner fa-spin"></i> Загрузка истории...
+                </div>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div class="pagination-container" id="paginationContainer" style="display: none;">
+                <div class="pagination-info">
+                    <span id="paginationInfo"></span>
+                </div>
+                <div class="pagination-controls">
+                    <button class="btn btn-secondary btn-small" id="prevPageBtn" onclick="app.loadPreviousPage()">
+                        <i class="fas fa-chevron-left"></i> Назад
+                    </button>
+                    <button class="btn btn-secondary btn-small" id="nextPageBtn" onclick="app.loadNextPage()">
+                        Вперед <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
             </div>
         </div>

@@ -57,4 +57,9 @@ interface QueryRepositoryInterface
      * Удаляет запрос по его идентификатору
      */
     public function delete(UuidInterface $id): bool;
+
+    /**
+     * Возвращает общее количество запросов в базе данных
+     */
+    public function count(): int;
 }

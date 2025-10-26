@@ -395,9 +395,6 @@ body {
 
 /* History List */
 .history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     margin-bottom: 2rem;
 }
 
@@ -429,6 +426,45 @@ body {
 .history-meta {
     color: #999;
     font-size: 0.9rem;
+}
+
+/* Pagination Styles */
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+}
+
+.pagination-info {
+    font-size: 0.95rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.pagination-controls .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.pagination-controls .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.pagination-controls .btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
 }
 
 /* Loading Spinner */
@@ -1072,5 +1108,24 @@ button:focus-visible, .btn:focus-visible {
     
     .modal-footer .btn {
         width: 100%;
+    }
+    
+    .pagination-container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .pagination-info {
+        text-align: center;
+    }
+    
+    .pagination-controls {
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .pagination-controls .btn {
+        flex: 1;
+        min-width: 100px;
     }
 }
