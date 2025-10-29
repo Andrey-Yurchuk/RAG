@@ -108,7 +108,7 @@ php bin/migrate-host.php migrations:migrate
   - Username: `admin`
   - Password: `admin123`
 
-После первого входа измените пароль администратора.
+После первого входа измените пароль администратора
 
 ## Архитектура поиска
 
@@ -119,7 +119,7 @@ php bin/migrate-host.php migrations:migrate
 1. **Векторный поиск** - поиск по косинусному расстоянию между эмбеддингами
 2. **Полнотекстовый поиск** - поиск по ключевым словам с использованием PostgreSQL GIN индексов
 
-Результаты объединяются с помощью [Reciprocal Rank Fusion (RRF)](https://learn.microsoft.com/ru-ru/azure/search/hybrid-search-ranking) для получения наиболее релевантных результатов.
+Результаты объединяются с помощью [Reciprocal Rank Fusion (RRF)](https://learn.microsoft.com/ru-ru/azure/search/hybrid-search-ranking) для получения наиболее релевантных результатов
 
 ## Разработка
 
