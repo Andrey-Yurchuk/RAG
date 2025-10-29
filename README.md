@@ -142,7 +142,7 @@ make analyse
 # PHPCS
 make check-style
 
-# Автоматическое исправление стиля
+# Автоматическое исправление стиля 
 make fix-style
 ```
 
